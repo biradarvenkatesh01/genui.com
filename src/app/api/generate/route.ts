@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { ApiError, FinishReason, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { SYSTEM_PROMPT, buildUserMessage } from "@/lib/generation/system-prompt";
 import { pickSample } from "@/lib/generation/samples";
 import type { GenerateEvent, GenerateRequest } from "@/lib/generation/types";
 
-const MODEL = "claude-opus-5-5";
+const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const MAX_PROMPT_CHARS = 4000;
 const MAX_CODE_CHARS = 60000;
 
@@ -11,7 +11,7 @@ const encoder = new TextEncoder();
 const line = (e: GenerateEvent) => encoder.encode(JSON.stringify(e) + "\n");
 
 function hasCredentials() {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return Boolean(process.env.GEMINI_API_KEY);
 }
 
 export async function POST(request: Request) {
@@ -46,39 +46,38 @@ function liveStream(
   previousCode: string | undefined,
   signal: AbortSignal,
 ): ReadableStream<Uint8Array> {
-  const client = new Anthropic();
+  const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   return new ReadableStream({
     async start(controller) {
       try {
-        const stream = client.beta.messages.stream(
-          {
-            model: MODEL,
-            max_tokens: 32000,
-            betas: ["server-side-fallback-2026-07-01"],
-            fallbacks: "default",
-            thinking: { type: "adaptive" },
-            output_config: { effort: "medium" },
-            system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-            messages: [
-              { role: "user", content: buildUserMessage({ prompt, category, previousCode }) },
-            ],
+        const stream = await client.models.generateContentStream({
+          model: MODEL,
+          contents: buildUserMessage({ prompt, category, previousCode }),
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            maxOutputTokens: 32000,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+            abortSignal: signal,
           },
-          { signal },
-        );
+        });
 
-        for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(line({ type: "delta", text: event.delta.text }));
+        let finishReason: FinishReason | undefined;
+        let blocked = false;
+        for await (const chunk of stream) {
+          if (chunk.promptFeedback?.blockReason) blocked = true;
+          const candidate = chunk.candidates?.[0];
+          if (candidate?.finishReason) finishReason = candidate.finishReason;
+          for (const part of candidate?.content?.parts ?? []) {
+            if (part.text && !part.thought) controller.enqueue(line({ type: "delta", text: part.text }));
           }
         }
 
-        const final = await stream.finalMessage();
-        if (final.stop_reason === "refusal") {
+        if (blocked || (finishReason && finishReason !== FinishReason.STOP && finishReason !== FinishReason.MAX_TOKENS)) {
           controller.enqueue(
             line({ type: "error", message: "That request couldn't be completed. Try rephrasing it." }),
           );
-        } else if (final.stop_reason === "max_tokens") {
+        } else if (finishReason === FinishReason.MAX_TOKENS) {
           controller.enqueue(
             line({ type: "error", message: "The component was too long and got cut off. Try a simpler request." }),
           );
@@ -95,10 +94,13 @@ function liveStream(
 }
 
 function describeError(err: unknown): string {
-  if (err instanceof Anthropic.AuthenticationError) return "The server's Anthropic API key is invalid.";
-  if (err instanceof Anthropic.RateLimitError) return "We're getting a lot of requests — try again in a moment.";
-  if (err instanceof Anthropic.APIConnectionError) return "Couldn't reach the model. Check your connection and retry.";
-  if (err instanceof Anthropic.APIError) return `Generation failed (${err.status ?? "unknown"}).`;
+  if (err instanceof ApiError) {
+    const badKey = err.status === 401 || err.status === 403 || (err.status === 400 && /api key/i.test(err.message));
+    if (badKey) return "The server's Gemini API key is invalid.";
+    if (err.status === 429) return "We're getting a lot of requests — try again in a moment.";
+    return `Generation failed (${err.status}).`;
+  }
+  if (err instanceof TypeError) return "Couldn't reach the model. Check your connection and retry.";
   console.error(err);
   return "Something went wrong while generating.";
 }

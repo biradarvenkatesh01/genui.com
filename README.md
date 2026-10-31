@@ -8,7 +8,7 @@ and ready to copy.
 
 ```bash
 npm install
-cp .env.example .env.local   # add ANTHROPIC_API_KEY, or leave empty for demo mode
+cp .env.example .env.local   # add GEMINI_API_KEY, or leave empty for demo mode
 npm run dev
 ```
 
@@ -21,7 +21,7 @@ generations return bundled sample components.
 
 | Piece | Where |
 | --- | --- |
-| Generation endpoint (streams NDJSON from Claude) | `src/app/api/generate/route.ts` |
+| Generation endpoint (streams NDJSON from Gemini) | `src/app/api/generate/route.ts` |
 | Component contract / system prompt | `src/lib/generation/system-prompt.ts` |
 | Client generation state, versions, refinements | `src/lib/generation/use-generation.ts` |
 | In-browser TSX compile (sucrase) | `src/lib/preview/compile.ts` |
