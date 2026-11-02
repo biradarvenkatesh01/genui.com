@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@babel/parser": "^7.29.12",
     "@google/genai": "^2.32.0",
     "groq-sdk": "^1.6.0",
     "lucide-react": "^1.66.0",
@@ -19,6 +20,7 @@
     "sucrase": "^3.35.1"
   },
   "devDependencies": {
+    "@babel/types": "^7.29.11",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

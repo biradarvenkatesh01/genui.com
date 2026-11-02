@@ -2,7 +2,15 @@
 
 import { useCallback, useRef, useState } from "react";
 import { extractCode, extractName } from "./parse";
-import type { GenerateEvent } from "./types";
+import type { GenerateEvent, GenerateRequest, SelectedElement } from "./types";
+
+/** What a refinement builds on. Without `baseCode` the prompt starts a new component. */
+export type RefineContext = {
+  baseCode?: string;
+  history?: string[];
+  manualEdits?: string[];
+  selection?: SelectedElement;
+};
 
 export type Version = {
   id: string;
@@ -27,7 +35,7 @@ export function useGeneration() {
   const active = versions.find((v) => v.id === activeId) ?? null;
 
   const generate = useCallback(
-    async (prompt: string, category: string, opts: { refine?: boolean; baseCode?: string } = {}) => {
+    async (prompt: string, category: string, opts: RefineContext = {}) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -45,8 +53,13 @@ export function useGeneration() {
           body: JSON.stringify({
             prompt,
             category,
-            previousCode: opts.refine ? opts.baseCode : undefined,
-          }),
+            ...(opts.baseCode && {
+              previousCode: opts.baseCode,
+              history: opts.history,
+              manualEdits: opts.manualEdits,
+              selection: opts.selection,
+            }),
+          } satisfies GenerateRequest),
           signal: controller.signal,
         });
         if (!res.ok || !res.body) {

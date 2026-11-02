@@ -1,3 +1,5 @@
+import type { SelectedElement } from "./types";
+
 // The component contract lives here. The preview runtime, the Tweak panel and
 // the code exporter all depend on it, so change it with care.
 export const SYSTEM_PROMPT = `You are GenUI, a senior design engineer who builds beautiful, production-quality React UI components.
@@ -119,20 +121,38 @@ Rules:
 - No comments that restate the code, no TODOs, no console logs, no fake network calls or setTimeout "loading" demos unless asked.
 
 ## Refinements
-When given an existing component and a change request, return the complete updated file (same contract), preserving everything the user did not ask to change, including their current token values.`;
+When given an existing component and a change request, return the complete updated file (same contract).
+- Change only what the request asks for. Keep everything else exactly as it is: structure, copy, token values, and the code formatting of untouched parts.
+- Earlier requests in the session are listed for context. They are already applied in the current code; don't redo or undo them unless asked.
+- The user also edits the design by hand on a visual canvas. Those edits appear in the code as inline \`style\` entries (translate offsets, width/height, font sizes, colors, text changes). Treat them as deliberate design decisions and keep them, unless the request explicitly changes the same thing.
+- When an element is marked as selected, words like "this", "it" or "here" refer to that element. Apply the change to it (and its children) only, unless the request clearly asks for more.`;
 
 export function buildUserMessage(opts: {
   prompt: string;
   category: string;
   previousCode?: string;
+  history?: string[];
+  manualEdits?: string[];
+  selection?: SelectedElement;
 }): string {
-  const categoryLine =
-    opts.category && opts.category !== "auto"
-      ? `Component type: ${opts.category}\n`
-      : "";
-
-  if (opts.previousCode) {
-    return `${categoryLine}Here is the current component:\n\n\`\`\`tsx\n${opts.previousCode}\n\`\`\`\n\nChange request: ${opts.prompt}`;
+  if (!opts.previousCode) {
+    const categoryLine = opts.category && opts.category !== "auto" ? `Component type: ${opts.category}\n` : "";
+    return `${categoryLine}Build this component: ${opts.prompt}`;
   }
-  return `${categoryLine}Build this component: ${opts.prompt}`;
+
+  const parts: string[] = [];
+  if (opts.history?.length) {
+    parts.push(`Earlier requests (oldest first, already applied):\n${opts.history.map((h, i) => `${i + 1}. ${h}`).join("\n")}`);
+  }
+  if (opts.manualEdits?.length) {
+    parts.push(`Edits the user made by hand on the canvas since then (already in the code, keep them):\n${opts.manualEdits.map((e) => `- ${e}`).join("\n")}`);
+  }
+  parts.push(`Current component:\n\n\`\`\`tsx\n${opts.previousCode}\n\`\`\``);
+  if (opts.selection) {
+    parts.push(
+      `Selected element — a <${opts.selection.tag}> at line ${opts.selection.line}:\n\n\`\`\`tsx\n${opts.selection.snippet}\n\`\`\``,
+    );
+  }
+  parts.push(`Change request${opts.selection ? " (for the selected element)" : ""}: ${opts.prompt}`);
+  return parts.join("\n\n");
 }

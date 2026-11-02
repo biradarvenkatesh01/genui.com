@@ -1,10 +1,11 @@
 import { buildUserMessage } from "@/lib/generation/system-prompt";
 import { describeError, pickProvider, type Outcome } from "@/lib/generation/providers";
 import { pickSample } from "@/lib/generation/samples";
-import type { GenerateEvent, GenerateRequest } from "@/lib/generation/types";
+import type { GenerateEvent, GenerateRequest, SelectedElement } from "@/lib/generation/types";
 
 const MAX_PROMPT_CHARS = 4000;
 const MAX_CODE_CHARS = 60000;
+const MAX_SNIPPET_CHARS = 2000;
 
 const encoder = new TextEncoder();
 const line = (e: GenerateEvent) => encoder.encode(JSON.stringify(e) + "\n");
@@ -27,9 +28,18 @@ export async function POST(request: Request) {
   const previousCode = body.previousCode?.slice(0, MAX_CODE_CHARS);
   if (!prompt) return Response.json({ error: "Prompt is required" }, { status: 400 });
 
+  // Context only matters for refinements; keep it small, the model's token budget is tight.
+  const context = previousCode
+    ? {
+        history: strings(body.history, 6, 300),
+        manualEdits: strings(body.manualEdits, 20, 200),
+        selection: selection(body.selection),
+      }
+    : {};
+
   const provider = pickProvider();
   const stream = provider
-    ? liveStream(provider(buildUserMessage({ prompt, category, previousCode }), request.signal), request.signal)
+    ? liveStream(provider(buildUserMessage({ prompt, category, previousCode, ...context }), request.signal), request.signal)
     : demoStream(prompt, category, request.signal);
 
   return new Response(stream, {
@@ -39,6 +49,22 @@ export async function POST(request: Request) {
       "X-GenUI-Mode": provider ? "live" : "demo",
     },
   });
+}
+
+/** The last `max` non-empty strings of an untrusted array, each capped at `chars`. */
+function strings(value: unknown, max: number, chars: number): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+    .slice(-max)
+    .map((v) => v.trim().slice(0, chars));
+}
+
+function selection(value: unknown): SelectedElement | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const { tag, line, snippet } = value as Record<string, unknown>;
+  if (typeof tag !== "string" || typeof snippet !== "string" || !snippet.trim()) return undefined;
+  return { tag: tag.slice(0, 60), line: Number(line) || 0, snippet: snippet.slice(0, MAX_SNIPPET_CHARS) };
 }
 
 function liveStream(run: AsyncGenerator<string, Outcome>, signal: AbortSignal): ReadableStream<Uint8Array> {

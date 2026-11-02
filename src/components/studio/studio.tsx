@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -10,26 +10,36 @@ import {
   Copy,
   Download,
   Eye,
+  Hand,
   Monitor,
+  MousePointer2,
   Moon,
   Plus,
+  Redo2,
   RotateCw,
   Smartphone,
   Sparkles,
   Sun,
   Tablet,
+  Undo2,
+  X,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { PromptComposer } from "@/components/prompt-composer";
 import { CodeView } from "./code-view";
-import { PreviewFrame, type Canvas } from "./preview-frame";
+import { DesignPanel } from "./design-panel";
+import { PreviewFrame, type Canvas, type CanvasKey, type PreviewHandle } from "./preview-frame";
 import { TweakPanel } from "./tweak-panel";
+import { useCanvasEditor } from "@/lib/editor/use-canvas-editor";
+import type { StylePatch } from "@/lib/editor/jsx-source";
 import { useGeneration } from "@/lib/generation/use-generation";
 import { PROMPT_IDEAS, getCategory } from "@/lib/generation/categories";
-import { applyTokensToSource, type TokenObject } from "@/lib/preview/tokens";
+import { applyTokensToSource, isHexColor, type TokenObject } from "@/lib/preview/tokens";
 import { cn } from "@/lib/cn";
 
 type View = "preview" | "code";
+type Mode = "design" | "interact";
+type PanelTab = "design" | "theme";
 type Device = "desktop" | "tablet" | "mobile";
 
 const DEVICE_WIDTH: Record<Device, string> = { desktop: "100%", tablet: "768px", mobile: "390px" };
@@ -43,6 +53,10 @@ export function Studio() {
   const [device, setDevice] = useState<Device>("desktop");
   const [canvas, setCanvas] = useState<Canvas>("dark");
   const [replayKey, setReplayKey] = useState(0);
+  const [mode, setMode] = useState<Mode>("design");
+  const [panelTab, setPanelTab] = useState<PanelTab>("design");
+  const [focusTextKey, setFocusTextKey] = useState(0);
+  const preview = useRef<PreviewHandle>(null);
   // Per-version state, keyed by version id so switching versions needs no reset.
   const [defaultsById, setDefaultsById] = useState<Record<string, TokenObject | null>>({});
   const [overridesById, setOverridesById] = useState<Record<string, TokenObject | null>>({});
@@ -57,6 +71,9 @@ export function Studio() {
   const overrides = overridesById[activeId] ?? null;
   const previewError = errorById[activeId] ?? null;
   const setOverrides = (t: TokenObject | null) => setOverridesById((m) => ({ ...m, [activeId]: t }));
+  const editor = useCanvasEditor(active, gen.updateActiveCode);
+  const editing = mode === "design" && !streaming;
+  const selectedGid = editor.selectedGid;
 
   // Code with the user's tweaks written back in — what they copy/download.
   const exportCode = useMemo(
@@ -64,11 +81,59 @@ export function Studio() {
     [active, overrides],
   );
 
+  const tokenColors = useMemo(() => {
+    const colors = (overrides ?? defaults)?.colors;
+    if (!colors || typeof colors !== "object") return {};
+    return Object.fromEntries(Object.entries(colors).filter((e): e is [string, string] => isHexColor(e[1])));
+  }, [overrides, defaults]);
+
   function run(text: string) {
-    const refine = Boolean(active);
-    gen.generate(text, category, { refine, baseCode: exportCode });
+    if (!active) {
+      gen.generate(text, category);
+    } else {
+      const info = editor.info;
+      // Token tweaks can reflow the tokens literal; shift the line to match the code being sent.
+      const lineShift = exportCode.split("\n").length - active.code.split("\n").length;
+      gen.generate(text, category, {
+        baseCode: exportCode,
+        history: gen.versions.slice(0, gen.versions.indexOf(active) + 1).map((v) => v.prompt),
+        manualEdits: editor.manualEdits,
+        selection: info ? { tag: info.tag, line: info.line + lineShift, snippet: info.snippet } : undefined,
+      });
+    }
     setPrompt("");
   }
+
+  function styleSelected(patch: StylePatch, previewStyle: Record<string, string>, debounce: boolean) {
+    if (selectedGid === null) return;
+    preview.current?.previewStyle(selectedGid, previewStyle);
+    editor.applyStyle(selectedGid, patch, debounce);
+  }
+
+  function onCanvasKey({ key, mod, shift }: CanvasKey) {
+    if (mod && key === "z") (shift ? editor.redo : editor.undo)();
+    else if (mod && key === "y") editor.redo();
+    else if (mod && key === "d") editor.duplicate();
+    else if (!mod && (key === "delete" || key === "backspace")) editor.remove();
+  }
+
+  // The same shortcuts work when focus is in the studio rather than the canvas.
+  const onWindowKey = useEffectEvent((e: KeyboardEvent) => {
+    const t = e.target as HTMLElement;
+    if (!editing || t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+    const mod = e.metaKey || e.ctrlKey;
+    const key = e.key.toLowerCase();
+    if (key === "escape") editor.select(null);
+    else if ((mod && /^[zyd]$/.test(key)) || (selectedGid !== null && (key === "delete" || key === "backspace"))) {
+      e.preventDefault();
+      onCanvasKey({ key, mod, shift: e.shiftKey });
+    }
+  });
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => onWindowKey(e);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   // Kick off the prompt handed over from the landing page.
   useEffect(() => {
@@ -150,7 +215,12 @@ export function Studio() {
                       )}
                     >
                       <span className="mb-1 flex items-center justify-between text-[11px] text-fg-subtle">
-                        <span>v{i + 1} · {getCategory(v.category).label}</span>
+                        <span>
+                          v{i + 1} · {getCategory(v.category).label}
+                          {v.id === gen.activeId && editor.manualEdits.length > 0 && (
+                            <> · {editor.manualEdits.length} canvas edit{editor.manualEdits.length === 1 ? "" : "s"}</>
+                          )}
+                        </span>
                         {v.id === gen.activeId && <span className="size-1.5 rounded-full bg-accent" />}
                       </span>
                       <span className="line-clamp-3 text-[13px] leading-snug text-fg">{v.prompt}</span>
@@ -174,6 +244,22 @@ export function Studio() {
                 <AlertTriangle className="mt-px size-3.5 shrink-0" /> {gen.error}
               </p>
             )}
+            {editor.info && (
+              <div className="mb-2 flex items-center gap-2 rounded-xl border border-accent/25 bg-accent/10 px-3 py-1.5 text-[12px] text-fg-muted">
+                <MousePointer2 className="size-3.5 shrink-0 text-accent" />
+                <span className="min-w-0 flex-1 truncate">
+                  Changes apply to the selected <span className="font-medium text-fg">{editor.info.tag}</span>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Clear selection"
+                  onClick={() => editor.select(null)}
+                  className="grid size-5 place-items-center rounded-full hover:bg-white/10 hover:text-fg"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
             <PromptComposer
               value={prompt}
               onChange={setPrompt}
@@ -182,7 +268,13 @@ export function Studio() {
               onCategoryChange={setCategory}
               busy={streaming}
               onStop={gen.stop}
-              placeholder={active ? "Refine it — “make it pink”, “add a hover tilt”…" : "Describe a component…"}
+              placeholder={
+                editor.info
+                  ? `Change this ${editor.info.tag} — “make it bigger”, “add an icon”…`
+                  : active
+                    ? "Refine it — “make it pink”, “add a hover tilt”…"
+                    : "Describe a component…"
+              }
             />
           </div>
         </aside>
@@ -190,15 +282,35 @@ export function Studio() {
         {/* Center: canvas */}
         <main className="order-1 flex min-h-[55vh] min-w-0 flex-1 flex-col p-3 lg:order-2 lg:min-h-0">
           <div className="flex items-center justify-between gap-2 pb-3">
-            <Segmented
-              value={view}
-              onChange={setView}
-              options={[
-                { id: "preview", label: "Preview", icon: Eye },
-                { id: "code", label: "Code", icon: Code2 },
-              ]}
-            />
             <div className="flex items-center gap-1.5">
+              <Segmented
+                value={view}
+                onChange={setView}
+                options={[
+                  { id: "preview", label: "Preview", icon: Eye },
+                  { id: "code", label: "Code", icon: Code2 },
+                ]}
+              />
+              {view === "preview" && (
+                <Segmented
+                  value={mode}
+                  onChange={setMode}
+                  iconOnly
+                  options={[
+                    { id: "design", label: "Design — select, drag and edit", icon: MousePointer2 },
+                    { id: "interact", label: "Interact — use it like the real thing", icon: Hand },
+                  ]}
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <IconButton label="Undo (Ctrl+Z)" onClick={editor.undo} disabled={!editor.canUndo}>
+                <Undo2 className="size-4" />
+              </IconButton>
+              <IconButton label="Redo (Ctrl+Shift+Z)" onClick={editor.redo} disabled={!editor.canRedo}>
+                <Redo2 className="size-4" />
+              </IconButton>
+              <span className="mx-0.5 hidden h-4 w-px bg-line sm:block" />
               <div className="hidden sm:block">
                 <Segmented
                   value={device}
@@ -236,8 +348,26 @@ export function Studio() {
                   tokens={overrides}
                   canvas={canvas}
                   replayKey={replayKey}
+                  editing={editing}
+                  selected={editor.info && selectedGid !== null ? { gid: selectedGid, label: editor.info.tag } : null}
                   onDefaultTokens={(t) => setDefaultsById((m) => ({ ...m, [activeId]: t }))}
                   onError={(e) => setErrorById((m) => ({ ...m, [activeId]: e }))}
+                  onSelect={(s) => {
+                    editor.onCanvasSelect(s);
+                    if (s) setPanelTab("design");
+                  }}
+                  onEdit={(e) => {
+                    if (e.op === "style") editor.applyStyle(e.gid, e.style);
+                    // Text that can't be written back: re-render so the canvas matches the code again.
+                    else if (!editor.applyText(e.gid, e.text)) setReplayKey((k) => k + 1);
+                  }}
+                  onKey={onCanvasKey}
+                  onTextRequest={(gid) => {
+                    editor.select(gid);
+                    setPanelTab("design");
+                    setFocusTextKey((k) => k + 1);
+                  }}
+                  ref={preview}
                 />
               </motion.div>
             </div>
@@ -263,6 +393,20 @@ export function Studio() {
 
             {!active && !streaming && <EmptyCanvas />}
 
+            <AnimatePresence>
+              {editor.notice && (
+                <motion.p
+                  role="status"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className="glass absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-fg-muted shadow-xl"
+                >
+                  {editor.notice}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
             {previewError && view === "preview" && active && !streaming && (
               <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-2xl border border-red-500/20 bg-[#1a0d0f]/95 px-4 py-3 text-[12px] text-red-200 backdrop-blur">
                 <AlertTriangle className="mt-px size-3.5 shrink-0" />
@@ -281,15 +425,49 @@ export function Studio() {
 
         {/* Right: tweaks */}
         <aside className="order-3 shrink-0 border-t border-line lg:w-[300px] lg:overflow-y-auto lg:border-t-0 lg:border-l">
-          <div className="flex h-12 items-center border-b border-line px-5">
-            <h2 className="text-[13px] font-semibold">Tweak</h2>
+          <div className="flex h-12 items-center border-b border-line px-4">
+            <Segmented
+              value={panelTab}
+              onChange={setPanelTab}
+              options={[
+                { id: "design", label: "Design", icon: MousePointer2 },
+                { id: "theme", label: "Theme", icon: Sparkles },
+              ]}
+            />
           </div>
-          <TweakPanel
-            defaults={defaults}
-            value={overrides}
-            onChange={setOverrides}
-            onReset={() => setOverrides(null)}
-          />
+          {panelTab === "theme" ? (
+            <TweakPanel
+              defaults={defaults}
+              value={overrides}
+              onChange={setOverrides}
+              onReset={() => setOverrides(null)}
+            />
+          ) : editor.info ? (
+            <DesignPanel
+              info={editor.info}
+              computed={editor.computed}
+              tokenColors={tokenColors}
+              focusTextKey={focusTextKey}
+              onStyle={styleSelected}
+              onText={(text) => selectedGid !== null && editor.applyText(selectedGid, text)}
+              onSelect={editor.select}
+              onDelete={editor.remove}
+              onDuplicate={editor.duplicate}
+              onMove={editor.move}
+            />
+          ) : (
+            <div className="space-y-3 px-5 py-6 text-[13px] leading-relaxed text-fg-subtle">
+              <p>{active ? "Click any element on the canvas to edit it." : "Generate a component, then edit it here like a design."}</p>
+              {active && (
+                <ul className="space-y-1.5 text-[12px]">
+                  <li>Drag to move · handles to resize</li>
+                  <li>Double-click text to retype it</li>
+                  <li>Arrows nudge · Del deletes · Ctrl+D duplicates</li>
+                  <li>Select something, then prompt to change just that</li>
+                </ul>
+              )}
+            </div>
+          )}
         </aside>
       </div>
     </div>
@@ -401,14 +579,25 @@ function Segmented<T extends string>({
   );
 }
 
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+function IconButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="grid size-8 place-items-center rounded-full text-fg-muted transition-colors hover:bg-white/[0.06] hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      disabled={disabled}
+      className="grid size-8 place-items-center rounded-full text-fg-muted transition-colors hover:bg-white/[0.06] hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </button>
