@@ -65,7 +65,7 @@ export function TweakPanel({ defaults, value, onChange, onReset }: Props) {
             <span className="text-[13px] text-fg-muted group-hover:text-fg">{label(key)}</span>
             <span className="flex items-center gap-2">
               <span className="font-mono text-[11px] text-fg-subtle uppercase">{v.slice(0, 7)}</span>
-              <span className="relative size-7 overflow-hidden rounded-lg ring-1 ring-white/15">
+              <span className="relative size-7 overflow-hidden rounded-lg ring-1 ring-line-strong">
                 <span className="absolute inset-0" style={{ background: v }} />
                 <input
                   id={id}
@@ -101,7 +101,7 @@ export function TweakPanel({ defaults, value, onChange, onReset }: Props) {
               step={r.step}
               value={v}
               onChange={(e) => onChange(setIn(tokens, p, Number(e.target.value)))}
-              className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--accent)]"
+              className="h-1 w-full cursor-pointer appearance-none rounded-full bg-active"
             />
           </div>
         );
@@ -119,7 +119,7 @@ export function TweakPanel({ defaults, value, onChange, onReset }: Props) {
           type="button"
           onClick={onReset}
           disabled={!value}
-          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] text-fg-muted transition-colors hover:bg-white/5 hover:text-fg disabled:opacity-30"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-30"
         >
           <RotateCcw className="size-3" /> Reset
         </button>

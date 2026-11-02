@@ -7,7 +7,7 @@ import { motion, useMotionValue, useSpring } from "motion/react";
 import { ArrowRight } from "lucide-react";
 
 export const tokens = {
-  colors: { primary: "#6366F1", glow: "#A855F7", text: "#FFFFFF", surface: "#0B0B0F" },
+  colors: { primary: "#E5501E", glow: "#FF8A5B", text: "#FFFFFF", surface: "#141311" },
   radius: 999,
   motion: { stiffness: 220, damping: 16 },
 };
@@ -50,7 +50,7 @@ import { motion } from "motion/react";
 import { Check, Sparkles } from "lucide-react";
 
 export const tokens = {
-  colors: { primary: "#8B5CF6", spotlight: "#22D3EE", surface: "#0E0E12", text: "#F5F5F7", muted: "#8E8E93" },
+  colors: { primary: "#FF6A3D", spotlight: "#FFC29E", surface: "#141311", text: "#F3F1EC", muted: "#9A968E" },
   radius: 28,
   motion: { duration: 0.7, delay: 0.08 },
 };
@@ -122,7 +122,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 
 export const tokens = {
-  colors: { primary: "#0A84FF", surface: "#111114", border: "#26262B", text: "#F5F5F7", muted: "#98989F" },
+  colors: { primary: "#E5501E", surface: "#181816", border: "#2A2926", text: "#EDEBE6", muted: "#A5A29B" },
   radius: 18,
   motion: { duration: 0.35, stiffness: 300, damping: 26 },
 };
@@ -190,7 +190,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { LayoutGrid, Code2, Palette } from "lucide-react";
 
 export const tokens = {
-  colors: { primary: "#F5F5F7", surface: "#16161A", track: "#232328", text: "#F5F5F7", muted: "#8E8E93" },
+  colors: { primary: "#EDEBE6", surface: "#181816", track: "#24231F", text: "#EDEBE6", muted: "#A5A29B" },
   radius: 14,
   motion: { stiffness: 400, damping: 32, duration: 0.25 },
 };

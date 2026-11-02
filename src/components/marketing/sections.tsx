@@ -1,19 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { AnimatePresence, motion, useMotionValue, useSpring } from "motion/react";
-import { ArrowRight, Mic, MousePointer2, Palette, Plus, Wand2 } from "lucide-react";
-import { CATEGORIES } from "@/lib/generation/categories";
+import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowRight, Plus } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LogoMark } from "@/components/logo";
+import { cn } from "@/lib/cn";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
 function Reveal({ children, delay = 0, className }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 28 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.9, ease, delay }}
       className={className}
     >
@@ -22,159 +24,236 @@ function Reveal({ children, delay = 0, className }: { children: React.ReactNode;
   );
 }
 
-export function CategoryMarquee() {
-  const items = CATEGORIES.filter((c) => c.id !== "auto");
+function SectionHeading({ eyebrow, title, italic, body }: { eyebrow: string; title: string; italic: string; body?: string }) {
   return (
-    <section aria-label="Component types" className="relative overflow-hidden border-y border-line py-6">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 bg-gradient-to-r from-bg to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 bg-gradient-to-l from-bg to-transparent" />
-      <motion.div
-        className="flex w-max gap-3"
-        animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-      >
-        {[...items, ...items].map((c, i) => (
-          <Link
+    <Reveal className="max-w-2xl">
+      <p className="eyebrow">{eyebrow}</p>
+      <h2 className="mt-4 text-[clamp(2.1rem,5vw,3.6rem)] leading-[1] font-semibold tracking-[-0.045em] text-fg">
+        {title} <span className="font-serif font-normal tracking-[-0.02em] italic">{italic}</span>
+      </h2>
+      {body && <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-fg-muted">{body}</p>}
+    </Reveal>
+  );
+}
+
+export function StackStrip() {
+  const items = ["React 19", "TypeScript", "Tailwind CSS v4", "Motion", "Lucide icons"];
+  return (
+    <section aria-label="Output stack" className="mx-auto mt-24 max-w-6xl px-5">
+      <div className="rule-ticks h-1.5" />
+      <div className="flex flex-col items-center justify-between gap-4 py-7 sm:flex-row">
+        <p className="eyebrow">Every component ships as</p>
+        <ul className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-[15px] font-medium tracking-tight text-fg-muted">
+          {items.map((i) => (
+            <li key={i}>{i}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="rule-ticks h-1.5" />
+    </section>
+  );
+}
+
+/* ───────────────────────── Features bento ───────────────────────── */
+
+export function Features() {
+  return (
+    <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-32">
+      <SectionHeading
+        eyebrow="01 — Features"
+        title="Everything between idea"
+        italic="and import."
+        body="GenUI isn't a gallery to dig through. It's a studio: you describe, it builds, and you finish the job with real design controls."
+      />
+      <div className="mt-16 grid gap-3 md:grid-cols-6">
+        <Tile className="md:col-span-4" title="Say it out loud." body="Dictate the component while you think. GenUI hears the vibe, the layout and the motion.">
+          <VoiceDemo />
+        </Tile>
+        <Tile className="md:col-span-2" title="Tune without prompting." body="Colors, corners and springs are live controls. No regeneration.">
+          <TuneDemo />
+        </Tile>
+        <Tile className="md:col-span-2" title="Edit like a design file." body="Click anything on the canvas. Drag, resize, retype.">
+          <DragDemo />
+        </Tile>
+        <Tile className="md:col-span-4" title="Code you'd write yourself." body="Typed, accessible, no wrapper soup. Copy it or download the file.">
+          <CodeDemo />
+        </Tile>
+        <Tile className="md:col-span-3" title="Motion with physics." body="Springs for interaction, eased entrances, reduced-motion respected.">
+          <ToggleDemo />
+        </Tile>
+        <Tile className="md:col-span-3" title="Accessible by default." body="Semantic elements, ARIA, focus rings and keyboard support.">
+          <AccordionDemo />
+        </Tile>
+      </div>
+    </section>
+  );
+}
+
+function Tile({ title, body, className, children }: { title: string; body: string; className?: string; children: React.ReactNode }) {
+  return (
+    <Reveal className={className}>
+      <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-bg-elevated shadow-sm transition-shadow duration-500 hover:shadow-md">
+        <div className="dot-grid relative grid min-h-[230px] flex-1 place-items-center border-b border-line bg-bg-sunken p-6">{children}</div>
+        <div className="p-6">
+          <h3 className="text-[17px] font-semibold tracking-tight text-fg">{title}</h3>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-fg-muted">{body}</p>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function VoiceDemo() {
+  const bars = Array.from({ length: 28 }, (_, i) => i);
+  return (
+    <div className="flex w-full max-w-md flex-col items-center gap-6">
+      <div className="flex h-12 items-center gap-[3px]" aria-hidden>
+        {bars.map((i) => (
+          <motion.span
             key={i}
-            href={`/studio?category=${c.id}`}
-            className="rounded-full border border-line px-5 py-2 text-[14px] whitespace-nowrap text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
-          >
-            {c.label}
-          </Link>
-        ))}
-      </motion.div>
-    </section>
-  );
-}
-
-const STEPS = [
-  {
-    icon: Mic,
-    title: "Describe or dictate",
-    body: "Type it, or just say it. Name the component, the vibe and the motion — “a glassy card that tilts toward the cursor.”",
-  },
-  {
-    icon: Wand2,
-    title: "Watch it come alive",
-    body: "GenUI writes clean React, Tailwind and Motion in real time and renders it on a live, sandboxed canvas.",
-  },
-  {
-    icon: Palette,
-    title: "Tweak, then ship",
-    body: "Dial in colors, corners and timing with direct controls, ask for refinements, and copy code that’s yours.",
-  },
-];
-
-export function HowItWorks() {
-  return (
-    <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-32">
-      <Reveal className="mx-auto max-w-2xl text-center">
-        <p className="text-[13px] font-semibold tracking-[0.12em] text-accent uppercase">How it works</p>
-        <h2 className="text-gradient mt-4 text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] font-semibold tracking-[-0.035em]">
-          From idea to interface
-          <br /> in one conversation.
-        </h2>
-      </Reveal>
-      <div className="mt-20 grid gap-4 md:grid-cols-3">
-        {STEPS.map((s, i) => (
-          <Reveal key={s.title} delay={i * 0.1}>
-            <div className="group relative h-full overflow-hidden rounded-[28px] border border-line bg-bg-elevated p-8 transition-colors hover:border-line-strong">
-              <div className="pointer-events-none absolute -top-24 -right-24 size-56 rounded-full bg-accent/10 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100" />
-              <span className="font-mono text-[12px] text-fg-subtle">0{i + 1}</span>
-              <s.icon className="mt-6 size-7 text-fg" strokeWidth={1.5} />
-              <h3 className="mt-6 text-xl font-semibold tracking-tight">{s.title}</h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">{s.body}</p>
-            </div>
-          </Reveal>
+            className="w-[3px] rounded-full bg-fg"
+            animate={{ height: [6, 10 + ((i * 37) % 30), 8, 4 + ((i * 53) % 26), 6] }}
+            transition={{ duration: 1.6 + (i % 5) * 0.15, repeat: Infinity, ease: "easeInOut", delay: i * 0.04 }}
+            style={{ opacity: 0.25 + ((i * 17) % 10) / 13 }}
+          />
         ))}
       </div>
-    </section>
+      <p className="text-center text-[15px] leading-relaxed text-fg-muted">
+        “A floating dock like macOS — icons <span className="text-fg">magnify on hover</span>, with a little{" "}
+        <span className="font-serif text-[17px] text-accent italic">bounce</span>.”
+      </p>
+    </div>
   );
 }
 
-export function Showcase() {
-  return (
-    <section id="components" className="mx-auto max-w-6xl scroll-mt-24 px-4 pb-32">
-      <Reveal className="mx-auto max-w-2xl text-center">
-        <p className="text-[13px] font-semibold tracking-[0.12em] text-accent-2 uppercase">Made with GenUI</p>
-        <h2 className="text-gradient mt-4 text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] font-semibold tracking-[-0.035em]">
-          Motion that feels right.
-        </h2>
-        <p className="mt-5 text-[17px] leading-relaxed text-fg-muted">
-          Every component ships with considered physics, accessible markup and tokens you can tune. Go ahead —
-          play with these.
-        </p>
-      </Reveal>
-      <div className="mt-16 grid gap-4 md:grid-cols-6">
-        <Reveal className="md:col-span-3">
-          <Tile label="Magnetic button" prompt="Magnetic CTA button that springs toward the pointer, with a glow on hover">
-            <MagneticDemo />
-          </Tile>
-        </Reveal>
-        <Reveal className="md:col-span-3" delay={0.08}>
-          <Tile label="Fluid toggle" prompt="iOS-style toggle switch with a springy knob and color morph">
-            <ToggleDemo />
-          </Tile>
-        </Reveal>
-        <Reveal className="md:col-span-4" delay={0.04}>
-          <Tile label="Accordion" prompt="FAQ accordion with smooth height animation and rotating plus icons">
-            <AccordionDemo />
-          </Tile>
-        </Reveal>
-        <Reveal className="md:col-span-2" delay={0.12}>
-          <Tile label="Tilt card" prompt="A 3D card that tilts toward the cursor with a moving glare">
-            <TiltDemo />
-          </Tile>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
+const SWATCHES = ["#141311", "#E5501E", "#2F6FEB", "#1E8A4C"];
 
-function Tile({ label, prompt, children }: { label: string; prompt: string; children: React.ReactNode }) {
+function TuneDemo() {
+  const [radius, setRadius] = useState(12);
+  const [color, setColor] = useState(SWATCHES[1]);
   return (
-    <div className="group relative flex h-[320px] flex-col overflow-hidden rounded-[28px] border border-line bg-bg-elevated">
-      <div className="grid flex-1 place-items-center p-6">{children}</div>
-      <div className="flex items-center justify-between border-t border-line px-6 py-4">
-        <span className="text-[13px] font-medium text-fg-muted">{label}</span>
-        <Link
-          href={`/studio?${new URLSearchParams({ prompt })}`}
-          className="inline-flex items-center gap-1 text-[13px] text-fg-subtle transition-colors hover:text-fg"
-        >
-          Remix <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+    <div className="flex w-full max-w-[220px] flex-col items-center gap-6">
+      <motion.span
+        layout
+        className="grid h-11 w-full place-items-center text-[13.5px] font-medium text-white shadow-md"
+        style={{ background: color, borderRadius: radius }}
+      >
+        Start free trial
+      </motion.span>
+      <div className="w-full space-y-3">
+        <label className="flex items-center justify-between gap-3 text-[12px] text-fg-muted">
+          Radius
+          <input
+            type="range"
+            min={0}
+            max={22}
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+            className="h-1 w-28 cursor-pointer"
+            aria-label="Corner radius"
+          />
+        </label>
+        <div className="flex items-center justify-between text-[12px] text-fg-muted">
+          Fill
+          <div className="flex gap-1.5">
+            {SWATCHES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-label={`Fill ${s}`}
+                aria-pressed={color === s}
+                onClick={() => setColor(s)}
+                className="size-5 rounded-full ring-1 ring-line-strong ring-offset-2 ring-offset-bg-sunken transition-transform hover:scale-110 aria-pressed:ring-2 aria-pressed:ring-fg"
+                style={{ background: s }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function MagneticDemo() {
-  const ref = useRef<HTMLButtonElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 200, damping: 14 });
-  const sy = useSpring(y, { stiffness: 200, damping: 14 });
+function DragDemo() {
   return (
-    <div
-      className="grid size-full place-items-center"
-      onPointerMove={(e) => {
-        const r = ref.current!.getBoundingClientRect();
-        x.set((e.clientX - (r.left + r.width / 2)) * 0.3);
-        y.set((e.clientY - (r.top + r.height / 2)) * 0.3);
-      }}
-      onPointerLeave={() => {
-        x.set(0);
-        y.set(0);
-      }}
-    >
-      <motion.button
-        ref={ref}
-        style={{ x: sx, y: sy }}
-        whileTap={{ scale: 0.95 }}
-        className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-accent to-accent-3 px-7 py-3.5 text-[15px] font-semibold text-white shadow-[0_10px_40px_-8px_var(--accent)]"
+    <div className="relative h-[170px] w-full max-w-[240px]">
+      <motion.div
+        drag
+        dragConstraints={{ left: -50, right: 50, top: -40, bottom: 40 }}
+        dragElastic={0.15}
+        dragTransition={{ bounceStiffness: 300, bounceDamping: 20 }}
+        whileDrag={{ scale: 1.03 }}
+        className="absolute top-1/2 left-1/2 -mt-[26px] -ml-[80px] cursor-grab active:cursor-grabbing"
       >
-        <MousePointer2 className="size-4" /> Come closer
-      </motion.button>
+        <div className="flex h-[52px] w-[160px] items-center gap-2.5 rounded-xl border border-line bg-bg-elevated px-3 shadow-md">
+          <span className="size-7 rounded-full bg-gradient-to-br from-[#e5501e] to-[#f0a36b]" />
+          <span className="space-y-1.5">
+            <span className="block h-1.5 w-16 rounded-full bg-fg/70" />
+            <span className="block h-1.5 w-10 rounded-full bg-fg/25" />
+          </span>
+        </div>
+        <span className="pointer-events-none absolute -inset-1.5 border-[1.5px] border-accent">
+          <span className="absolute -top-5 left-[-1.5px] rounded-[3px] bg-accent px-1 font-mono text-[9.5px] text-accent-fg">
+            drag me
+          </span>
+          {["-top-1 -left-1", "-top-1 -right-1", "-bottom-1 -left-1", "-bottom-1 -right-1"].map((p) => (
+            <span key={p} className={cn("absolute size-[7px] border-[1.5px] border-accent bg-bg-elevated", p)} />
+          ))}
+        </span>
+      </motion.div>
+    </div>
+  );
+}
+
+const CODE: [string, string][][] = [
+  [["k", "export default function "], ["t", "DeployButton"], ["p", "({ tokens: t = tokens }) {"]],
+  [["p", "  return ("]],
+  [["g", "    <motion.button"]],
+  [["a", "      whileTap"], ["p", "={{ scale: "], ["n", "0.97"], ["p", " }}"]],
+  [["a", "      style"], ["p", "={{ background: t.colors.ink, borderRadius: t.radius }}"]],
+  [["a", "      className"], ["p", "="], ["s", '"inline-flex h-11 items-center gap-2 px-5"']],
+  [["g", "    >"]],
+  [["p", "      Deploy to production"]],
+  [["g", "    </motion.button>"]],
+  [["p", "  );"]],
+  [["p", "}"]],
+];
+
+const SYN: Record<string, string> = {
+  k: "text-[var(--syn-keyword)]",
+  t: "text-[var(--syn-type)]",
+  g: "text-[var(--syn-tag)]",
+  a: "text-fg",
+  n: "text-[var(--syn-number)]",
+  s: "text-[var(--syn-string)]",
+  p: "text-fg-muted",
+};
+
+function CodeDemo() {
+  return (
+    <div className="w-full max-w-xl overflow-hidden rounded-xl border border-line bg-bg-elevated text-left shadow-md">
+      <div className="flex items-center justify-between border-b border-line px-4 py-2">
+        <span className="font-mono text-[11px] text-fg-subtle">deploy-button.tsx</span>
+        <span className="font-mono text-[11px] text-fg-subtle">TSX</span>
+      </div>
+      <pre className="overflow-x-auto px-4 py-3 font-mono text-[11.5px] leading-[1.75]">
+        {CODE.map((line, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -6 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 + i * 0.05, duration: 0.4 }}
+          >
+            <span className="mr-4 inline-block w-4 text-right text-fg-subtle/60 select-none">{i + 1}</span>
+            {line.map(([kind, text], j) => (
+              <span key={j} className={SYN[kind]}>
+                {text}
+              </span>
+            ))}
+          </motion.div>
+        ))}
+      </pre>
     </div>
   );
 }
@@ -188,52 +267,50 @@ function ToggleDemo() {
       aria-checked={on}
       aria-label="Demo toggle"
       onClick={() => setOn(!on)}
-      className="flex h-14 w-24 items-center rounded-full p-1.5 transition-colors duration-500"
-      style={{ background: on ? "#34C759" : "#3A3A3C", justifyContent: on ? "flex-end" : "flex-start" }}
+      className={cn(
+        "flex h-14 w-24 items-center rounded-full p-1.5 shadow-inner transition-colors duration-500",
+        on ? "justify-end bg-accent" : "justify-start bg-active",
+      )}
     >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className="size-11 rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,.3)]"
-      />
+      <motion.span layout transition={{ type: "spring", stiffness: 500, damping: 30 }} className="size-11 rounded-full bg-white shadow-md" />
     </button>
   );
 }
 
 const FAQ = [
   ["What can I generate?", "Buttons, cards, navbars, pricing tables, forms, modals — anything you can describe."],
-  ["Do I own the code?", "Yes. Copy it straight into your project, no attribution required."],
-  ["Can I change the animation?", "Tune duration, delay and spring physics live from the Tweak panel."],
+  ["Do I own the code?", "Yes. Paste it into your project, no attribution required."],
+  ["Can I change the motion?", "Tune duration and spring physics live from the Theme panel."],
 ];
 
 function AccordionDemo() {
   const [open, setOpen] = useState(0);
   return (
-    <div className="w-full max-w-md divide-y divide-line overflow-hidden rounded-2xl border border-line bg-black/40">
+    <div className="w-full max-w-sm divide-y divide-line overflow-hidden rounded-xl border border-line bg-bg-elevated text-left shadow-md">
       {FAQ.map(([q, a], i) => (
         <div key={q}>
           <button
             type="button"
             aria-expanded={open === i}
             onClick={() => setOpen(open === i ? -1 : i)}
-            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[14px] font-medium"
+            className="flex w-full items-center justify-between px-4 py-3 text-left text-[13.5px] font-medium text-fg outline-none focus-visible:bg-hover"
           >
             {q}
             <motion.span animate={{ rotate: open === i ? 45 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}>
-              <Plus className="size-4 text-fg-muted" />
+              <Plus className="size-4 text-fg-subtle" />
             </motion.span>
           </button>
           <AnimatePresence initial={false}>
             {open === i && (
-              <motion.p
+              <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-                className="overflow-hidden px-5 text-[13px] leading-relaxed text-fg-muted"
+                className="overflow-hidden"
               >
-                <span className="block pb-4">{a}</span>
-              </motion.p>
+                <p className="px-4 pb-3.5 text-[13px] leading-relaxed text-fg-muted">{a}</p>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
@@ -242,66 +319,57 @@ function AccordionDemo() {
   );
 }
 
-function TiltDemo() {
-  const rx = useSpring(0, { stiffness: 150, damping: 15 });
-  const ry = useSpring(0, { stiffness: 150, damping: 15 });
-  const [glare, setGlare] = useState({ x: 50, y: 50 });
+/* ───────────────────────── How it works ───────────────────────── */
+
+const STEPS = [
+  ["Describe", "Type or dictate what you need: the component, the mood, how it moves. Pick a type if you like."],
+  ["Shape", "Watch it render live. Click any element to edit it, or ask for changes in plain words."],
+  ["Ship", "Copy clean React with your edits baked in, or download the file. It's yours."],
+];
+
+export function HowItWorks() {
   return (
-    <div style={{ perspective: 800 }}>
-      <motion.div
-        onPointerMove={(e) => {
-          const r = e.currentTarget.getBoundingClientRect();
-          const px = (e.clientX - r.left) / r.width;
-          const py = (e.clientY - r.top) / r.height;
-          ry.set((px - 0.5) * 24);
-          rx.set((0.5 - py) * 24);
-          setGlare({ x: px * 100, y: py * 100 });
-        }}
-        onPointerLeave={() => {
-          rx.set(0);
-          ry.set(0);
-        }}
-        style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
-        className="relative h-44 w-36 overflow-hidden rounded-2xl bg-gradient-to-br from-accent-2 via-accent to-accent-3 p-4 shadow-2xl"
-      >
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,.45), transparent 55%)` }}
-        />
-        <p className="relative text-[11px] font-semibold tracking-widest text-white/80 uppercase">GenUI</p>
-        <p className="relative mt-20 text-[15px] font-semibold text-white">Hover me</p>
-      </motion.div>
-    </div>
+    <section id="how" className="border-y border-line bg-bg-elevated">
+      <div className="mx-auto max-w-6xl scroll-mt-20 px-5 py-32">
+        <SectionHeading eyebrow="02 — How it works" title="Three steps." italic="No library hopping." />
+        <ol className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-line bg-line md:grid-cols-3">
+          {STEPS.map(([title, body], i) => (
+            <Reveal key={title} delay={i * 0.08} className="bg-bg-elevated">
+              <li className="flex h-full flex-col p-8">
+                <span className="font-serif text-[64px] leading-none text-fg-subtle/70 italic">{i + 1}</span>
+                <h3 className="mt-10 text-[20px] font-semibold tracking-tight text-fg">{title}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-fg-muted">{body}</p>
+              </li>
+            </Reveal>
+          ))}
+        </ol>
+      </div>
+    </section>
   );
 }
 
+/* ───────────────────────── Roadmap ───────────────────────── */
+
 const ROADMAP = [
-  ["Now", "Prompt & voice generation, live preview, token tweaks, code export"],
-  ["Next", "Figma-style visual editor: select any element, edit spacing, type and motion curves"],
-  ["Soon", "Accounts, saved libraries, shareable links, brand presets"],
-  ["Later", "Pro plans, team workspaces, CLI & editor extensions"],
-];
+  ["Now", "Prompt and voice generation, live preview, canvas editing, theme controls, code export", true],
+  ["Next", "Motion editor with easing curves and spring presets, side-by-side variants", false],
+  ["Soon", "Accounts, saved libraries, shareable links, brand presets", false],
+  ["Later", "Pro plans, team workspaces, CLI and editor extensions", false],
+] as const;
 
 export function Roadmap() {
   return (
-    <section id="roadmap" className="mx-auto max-w-4xl scroll-mt-24 px-4 pb-32">
-      <Reveal className="text-center">
-        <h2 className="text-gradient text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] font-semibold tracking-[-0.035em]">
-          Just getting started.
-        </h2>
-      </Reveal>
-      <ol className="mt-14 space-y-3">
-        {ROADMAP.map(([when, what], i) => (
-          <Reveal key={when} delay={i * 0.06}>
-            <li className="flex items-center gap-6 rounded-2xl border border-line px-6 py-5">
-              <span
-                className={
-                  "w-14 shrink-0 text-[13px] font-semibold " + (i === 0 ? "text-accent-2" : "text-fg-subtle")
-                }
-              >
+    <section id="roadmap" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-32">
+      <SectionHeading eyebrow="03 — Roadmap" title="Just getting" italic="started." />
+      <ol className="mt-14 border-t border-line">
+        {ROADMAP.map(([when, what, live], i) => (
+          <Reveal key={when} delay={i * 0.05}>
+            <li className="grid grid-cols-[88px_1fr] items-baseline gap-6 border-b border-line py-6 sm:grid-cols-[160px_1fr]">
+              <span className={cn("flex items-center gap-2 font-mono text-[12px] tracking-wide uppercase", live ? "text-accent" : "text-fg-subtle")}>
+                {live && <span className="size-1.5 animate-pulse rounded-full bg-accent" />}
                 {when}
               </span>
-              <span className="text-[15px] text-fg-muted">{what}</span>
+              <span className="text-[17px] leading-snug text-fg">{what}</span>
             </li>
           </Reveal>
         ))}
@@ -310,29 +378,38 @@ export function Roadmap() {
   );
 }
 
+/* ───────────────────────── CTA & footer ───────────────────────── */
+
 export function FinalCta() {
   return (
-    <section className="px-4 pb-24">
-      <Reveal className="relative mx-auto max-w-5xl overflow-hidden rounded-[36px] border border-line bg-bg-elevated px-6 py-20 text-center">
+    <section className="px-5 pb-10">
+      <Reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-fg px-6 py-24 text-center text-bg">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -bottom-40 mx-auto h-80 w-[80%] rounded-full opacity-40 blur-[100px]"
-          style={{ background: "linear-gradient(90deg, var(--accent-2), var(--accent), var(--accent-3))" }}
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{ backgroundImage: "radial-gradient(var(--bg) 1px, transparent 1px)", backgroundSize: "18px 18px" }}
         />
-        <h2 className="text-gradient relative text-[clamp(2rem,5vw,3.25rem)] leading-[1.05] font-semibold tracking-[-0.035em]">
+        <h2 className="relative text-[clamp(2.2rem,6vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.045em]">
           Your next component is
-          <br /> one sentence away.
+          <br />
+          <span className="font-serif font-normal tracking-[-0.02em] italic">one sentence away.</span>
         </h2>
         <Link
           href="/studio"
-          className="relative mt-10 inline-flex h-12 items-center gap-2 rounded-full bg-fg px-7 text-[15px] font-semibold text-bg transition-transform hover:scale-[1.03] active:scale-95"
+          className="group relative mt-10 inline-flex h-12 items-center gap-2 rounded-full bg-accent px-7 text-[15px] font-medium text-accent-fg shadow-lg transition-[filter,transform] hover:brightness-110 active:scale-[0.97]"
         >
-          Open the Studio <ArrowRight className="size-4" />
+          Open the Studio
+          <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
         </Link>
       </Reveal>
-      <footer className="mx-auto mt-16 flex max-w-5xl flex-col items-center justify-between gap-3 text-[12px] text-fg-subtle sm:flex-row">
-        <span>© 2026 GenUI. Built for people who build interfaces.</span>
-        <span>React · Tailwind · Motion</span>
+      <footer className="mx-auto mt-10 flex max-w-6xl flex-col items-center justify-between gap-4 border-t border-line pt-8 pb-4 text-[12.5px] text-fg-subtle sm:flex-row">
+        <span className="flex items-center gap-2">
+          <LogoMark className="size-4 text-fg" /> © 2026 GenUI. Built for people who build interfaces.
+        </span>
+        <span className="flex items-center gap-3">
+          React · Tailwind · Motion
+          <ThemeToggle />
+        </span>
       </footer>
     </section>
   );

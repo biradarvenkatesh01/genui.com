@@ -18,12 +18,12 @@ function highlight(code: string) {
     if (m.index > last) out.push({ text: code.slice(last, m.index) });
     const [text, comment, str, num, tag, word] = m;
     let cls: string | undefined;
-    if (comment) cls = "text-fg-subtle italic";
-    else if (str) cls = "text-[#a5e3a1]";
-    else if (num) cls = "text-[#f7b267]";
-    else if (tag) cls = "text-[#7cc4ff]";
-    else if (word && KEYWORDS.has(word)) cls = "text-[#c792ea]";
-    else if (word && /^[A-Z]/.test(word)) cls = "text-[#ffcb6b]";
+    if (comment) cls = "text-[var(--syn-comment)] italic";
+    else if (str) cls = "text-[var(--syn-string)]";
+    else if (num) cls = "text-[var(--syn-number)]";
+    else if (tag) cls = "text-[var(--syn-tag)]";
+    else if (word && KEYWORDS.has(word)) cls = "text-[var(--syn-keyword)]";
+    else if (word && /^[A-Z]/.test(word)) cls = "text-[var(--syn-type)]";
     out.push({ text, cls });
     last = m.index + text.length;
   }

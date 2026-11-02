@@ -1,6 +1,6 @@
 import { Nav } from "@/components/marketing/nav";
 import { Hero } from "@/components/marketing/hero";
-import { CategoryMarquee, FinalCta, HowItWorks, Roadmap, Showcase } from "@/components/marketing/sections";
+import { Features, FinalCta, HowItWorks, Roadmap, StackStrip } from "@/components/marketing/sections";
 
 export default function Home() {
   return (
@@ -8,9 +8,9 @@ export default function Home() {
       <Nav />
       <main>
         <Hero />
-        <CategoryMarquee />
+        <StackStrip />
+        <Features />
         <HowItWorks />
-        <Showcase />
         <Roadmap />
         <FinalCta />
       </main>

@@ -399,25 +399,29 @@ export const PREVIEW_HTML = `<!doctype html>
     font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro Text", sans-serif;
     -webkit-font-smoothing: antialiased; transition: background .3s ease;
   }
-  html[data-canvas="dark"] body { background: #050506; color: #f5f5f7; }
-  html[data-canvas="light"] body { background: #f5f5f7; color: #1d1d1f; }
+  html[data-canvas="dark"] body {
+    background: #0f0f0e radial-gradient(rgba(237,235,230,.07) 1px, transparent 1px) 0 0 / 18px 18px; color: #edebe6;
+  }
+  html[data-canvas="light"] body {
+    background: #f6f5f1 radial-gradient(rgba(20,19,17,.09) 1px, transparent 1px) 0 0 / 18px 18px; color: #141311;
+  }
   #root { width: 100%; display: flex; justify-content: center; }
   #genui-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647; display: none; }
   html.gx-editing #genui-overlay { display: block; }
   html.gx-editing #root, html.gx-editing #root * { cursor: default !important; user-select: none; }
   html.gx-editing #root [contenteditable] { cursor: text !important; user-select: text; outline: none; }
   .gx-box { position: absolute; display: none; box-sizing: border-box; }
-  .gx-hover { border: 1px solid #8b7cff; }
-  .gx-instance { border: 1px dashed rgba(139, 124, 255, 0.7); }
-  .gx-select { border: 1.5px solid #8b7cff; box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.18); }
+  .gx-hover { border: 1px solid #e5501e; }
+  .gx-instance { border: 1px dashed rgba(229, 80, 30, 0.7); }
+  .gx-select { border: 1.5px solid #e5501e; box-shadow: 0 0 0 3px rgba(229, 80, 30, 0.18); }
   .gx-chip {
     position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 4px; padding: 2px 6px; border-radius: 4px;
-    background: #8b7cff; color: #fff; font: 500 10px/1.4 ui-sans-serif, system-ui, sans-serif; white-space: nowrap;
+    background: #e5501e; color: #fff; font: 500 10px/1.4 ui-sans-serif, system-ui, sans-serif; white-space: nowrap;
   }
   .gx-chip:empty { display: none; }
   .gx-handle {
     position: absolute; width: 9px; height: 9px; box-sizing: border-box; pointer-events: auto;
-    background: #fff; border: 1.5px solid #8b7cff; border-radius: 2px;
+    background: #fff; border: 1.5px solid #e5501e; border-radius: 2px;
   }
   .gx-e { right: -5px; top: 50%; margin-top: -4.5px; cursor: ew-resize; }
   .gx-s { bottom: -5px; left: 50%; margin-left: -4.5px; cursor: ns-resize; }

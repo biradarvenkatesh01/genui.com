@@ -80,7 +80,7 @@ export function DesignPanel({
         <nav aria-label="Element path" className="flex flex-wrap items-center gap-0.5 text-[11px] text-fg-subtle">
           {computed?.ancestors.slice(-3).map((a) => (
             <span key={a.gid} className="flex items-center gap-0.5">
-              <button type="button" onClick={() => onSelect(a.gid)} className="rounded px-1 py-0.5 hover:bg-white/5 hover:text-fg">
+              <button type="button" onClick={() => onSelect(a.gid)} className="rounded px-1 py-0.5 hover:bg-hover hover:text-fg">
                 {a.tag}
               </button>
               <ChevronRight className="size-3" />
@@ -160,7 +160,7 @@ export function DesignPanel({
                 aria-checked={(literal(style.textAlign) ?? c?.textAlign) === id}
                 aria-label={`Align ${id}`}
                 onClick={() => onStyle({ textAlign: id }, { textAlign: id }, false)}
-                className="grid size-7 place-items-center rounded-md text-fg-subtle aria-checked:bg-white/10 aria-checked:text-fg"
+                className="grid size-7 place-items-center rounded-md text-fg-subtle aria-checked:bg-active aria-checked:text-fg"
               >
                 <Icon className="size-3.5" />
               </button>
@@ -256,7 +256,7 @@ function Action({
       onClick={onClick}
       className={cn(
         "grid size-8 place-items-center rounded-lg border border-line text-fg-muted transition-colors outline-none hover:border-line-strong hover:text-fg focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30",
-        danger && "hover:border-red-500/40 hover:text-red-300",
+        danger && "hover:border-danger/40 hover:text-danger",
       )}
     >
       {children}
@@ -270,7 +270,7 @@ function ResetChip({ show, onClick, children }: { show: boolean; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-fg-subtle hover:bg-white/5 hover:text-fg"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-fg-subtle hover:bg-hover hover:text-fg"
     >
       <RotateCcw className="size-3" /> {children}
     </button>
@@ -371,7 +371,7 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--accent)]"
+        className="h-1 w-full cursor-pointer appearance-none rounded-full bg-active"
       />
     </div>
   );
@@ -406,7 +406,7 @@ function ColorField({
             </button>
           )}
           <span className="font-mono text-[11px] text-fg-subtle uppercase">{token ?? hex ?? "none"}</span>
-          <span className="relative size-7 overflow-hidden rounded-lg ring-1 ring-white/15">
+          <span className="relative size-7 overflow-hidden rounded-lg ring-1 ring-line-strong">
             <span className="absolute inset-0" style={{ background: hex ?? "transparent" }} />
             <input
               type="color"
@@ -428,7 +428,7 @@ function ColorField({
               aria-label={`Use ${name} token`}
               aria-pressed={token === name}
               onClick={() => onChange({ token: name })}
-              className="size-5 rounded-md ring-1 ring-white/15 transition-transform hover:scale-110 aria-pressed:ring-2 aria-pressed:ring-accent"
+              className="size-5 rounded-md ring-1 ring-line-strong transition-transform hover:scale-110 aria-pressed:ring-2 aria-pressed:ring-accent"
               style={{ background: color }}
             />
           ))}

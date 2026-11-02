@@ -1,72 +1,172 @@
 @import "tailwindcss";
 
+/*
+ * GenUI design system — "Paper & Ink"
+ *
+ * Warm paper and ink neutrals carry the interface; a single signal color
+ * (vermilion) marks the one thing that matters on screen: the primary action,
+ * the current selection, focus. Everything else is typography, hairlines and
+ * space. Light is the default; dark is warm ink, not blue-black.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  --bg: #000000;
-  --bg-elevated: #0a0a0c;
-  --panel: rgba(22, 22, 26, 0.72);
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --fg: #f5f5f7;
-  --fg-muted: #a1a1a6;
-  --fg-subtle: #6e6e73;
-  --accent: #8b7cff;
-  --accent-2: #4cc9f0;
-  --accent-3: #ff6ec7;
+  --bg: #f6f5f1;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #efede7;
+  --line: rgba(20, 19, 17, 0.09);
+  --line-strong: rgba(20, 19, 17, 0.17);
+  --fg: #141311;
+  --fg-muted: #5e5b55;
+  --fg-subtle: #8f8b83;
+  --hover: rgba(20, 19, 17, 0.045);
+  --active: rgba(20, 19, 17, 0.085);
+  --accent: #e5501e;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(229, 80, 30, 0.1);
+  --danger: #c4321c;
+  --danger-soft: rgba(196, 50, 28, 0.09);
+  --success: #1e8a4c;
+  --dot: rgba(20, 19, 17, 0.11);
+  --grain-opacity: 0.045;
+  --shadow-sm: 0 1px 2px rgba(20, 19, 17, 0.06), 0 1px 1px rgba(20, 19, 17, 0.04);
+  --shadow-md: 0 1px 2px rgba(20, 19, 17, 0.05), 0 8px 24px -8px rgba(20, 19, 17, 0.12);
+  --shadow-lg: 0 2px 4px rgba(20, 19, 17, 0.04), 0 24px 64px -16px rgba(20, 19, 17, 0.18);
+
+  /* Code view syntax */
+  --syn-comment: #9a968e;
+  --syn-string: #2f7d4f;
+  --syn-number: #b4541a;
+  --syn-tag: #2a62a8;
+  --syn-keyword: #8a3fa0;
+  --syn-type: #9a6a00;
+}
+
+[data-theme="dark"] {
+  --bg: #0f0f0e;
+  --bg-elevated: #181816;
+  --bg-sunken: #0a0a09;
+  --line: rgba(237, 235, 230, 0.085);
+  --line-strong: rgba(237, 235, 230, 0.16);
+  --fg: #edebe6;
+  --fg-muted: #a5a29b;
+  --fg-subtle: #6f6c66;
+  --hover: rgba(237, 235, 230, 0.05);
+  --active: rgba(237, 235, 230, 0.095);
+  --accent: #ff6a3d;
+  --accent-fg: #160a05;
+  --accent-soft: rgba(255, 106, 61, 0.13);
+  --danger: #ff7a66;
+  --danger-soft: rgba(255, 122, 102, 0.12);
+  --success: #4fcf8a;
+  --dot: rgba(237, 235, 230, 0.09);
+  --grain-opacity: 0.06;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 64px -16px rgba(0, 0, 0, 0.7);
+
+  --syn-comment: #6f6c66;
+  --syn-string: #9ccf8a;
+  --syn-number: #f0a36b;
+  --syn-tag: #8ab8f0;
+  --syn-keyword: #d49ae6;
+  --syn-type: #e8c46a;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-elevated: var(--bg-elevated);
-  --color-panel: var(--panel);
+  --color-bg-sunken: var(--bg-sunken);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
   --color-accent: var(--accent);
-  --color-accent-2: var(--accent-2);
-  --color-accent-3: var(--accent-3);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
   --ease-apple: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   background: var(--bg);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition:
+    background-color 0.35s var(--ease-apple),
+    color 0.35s var(--ease-apple);
+}
+
+/* Film grain over the whole page: keeps flat surfaces from feeling digital. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  z-index: 100;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: var(--accent-soft);
+  color: var(--fg);
 }
 
-@utility text-gradient {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.62) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+:focus-visible {
+  outline-color: var(--accent);
 }
 
-@utility text-aurora {
-  background: linear-gradient(90deg, var(--accent-2), var(--accent) 45%, var(--accent-3));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Figma-style dot grid for canvases. */
+@utility dot-grid {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
-@utility glass {
-  background: var(--panel);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+/* Hairline measuring rule used between landing sections. */
+@utility rule-ticks {
+  background-image: repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 12px);
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+}
+
+@utility popover {
+  background: var(--bg-elevated);
   border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+}
+
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
 }
 
 @utility scrollbar-none {
@@ -74,27 +174,6 @@ body {
   &::-webkit-scrollbar {
     display: none;
   }
-}
-
-/* Animated conic border used by the prompt box */
-@property --angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes spin-angle {
-  to {
-    --angle: 360deg;
-  }
-}
-
-@utility aurora-border {
-  background:
-    linear-gradient(var(--bg-elevated), var(--bg-elevated)) padding-box,
-    conic-gradient(from var(--angle), transparent 0%, var(--accent-2) 12%, var(--accent) 24%, var(--accent-3) 36%, transparent 48%, transparent 100%) border-box;
-  border: 1px solid transparent;
-  animation: spin-angle 6s linear infinite;
 }
 
 @keyframes shimmer {
@@ -107,9 +186,23 @@ body {
 }
 
 @utility shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, var(--hover), transparent);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@utility caret {
+  animation: caret 1s steps(1) infinite;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

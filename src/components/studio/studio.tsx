@@ -18,13 +18,14 @@ import {
   Redo2,
   RotateCw,
   Smartphone,
-  Sparkles,
+  Palette,
   Sun,
   Tablet,
   Undo2,
   X,
 } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { Logo, LogoMark } from "@/components/logo";
+import { ThemeToggle, useTheme } from "@/components/theme-toggle";
 import { PromptComposer } from "@/components/prompt-composer";
 import { CodeView } from "./code-view";
 import { DesignPanel } from "./design-panel";
@@ -51,7 +52,10 @@ export function Studio() {
   const [category, setCategory] = useState(params.get("category") ?? "auto");
   const [view, setView] = useState<View>("preview");
   const [device, setDevice] = useState<Device>("desktop");
-  const [canvas, setCanvas] = useState<Canvas>("dark");
+  // The preview canvas follows the app theme until the user flips it for this session.
+  const theme = useTheme();
+  const [canvasOverride, setCanvasOverride] = useState<Canvas | null>(null);
+  const canvas: Canvas = canvasOverride ?? theme;
   const [replayKey, setReplayKey] = useState(0);
   const [mode, setMode] = useState<Mode>("design");
   const [panelTab, setPanelTab] = useState<PanelTab>("design");
@@ -147,7 +151,7 @@ export function Studio() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg">
       {/* Top bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-line px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-bg-elevated px-4">
         <div className="flex min-w-0 items-center gap-4">
           <Logo />
           <span className="hidden h-4 w-px bg-line-strong sm:block" />
@@ -168,6 +172,7 @@ export function Studio() {
               <Download className="size-4" />
             </IconButton>
           )}
+          <ThemeToggle />
           <button
             type="button"
             onClick={() => {
@@ -175,7 +180,7 @@ export function Studio() {
               setPrompt("");
               router.replace("/studio");
             }}
-            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-fg px-3.5 text-[13px] font-medium text-bg transition-transform active:scale-95"
+            className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-full bg-fg px-3.5 text-[13px] font-medium text-bg shadow-sm transition-transform hover:opacity-90 active:scale-95"
           >
             <Plus className="size-3.5" strokeWidth={2.5} /> New
           </button>
@@ -194,7 +199,7 @@ export function Studio() {
                     key={idea}
                     type="button"
                     onClick={() => run(idea)}
-                    className="block w-full rounded-2xl border border-line px-4 py-3 text-left text-[13px] leading-snug text-fg-muted transition-colors hover:border-line-strong hover:bg-white/[0.03] hover:text-fg"
+                    className="block w-full rounded-2xl border border-line px-4 py-3 text-left text-[13px] leading-snug text-fg-muted transition-colors hover:border-line-strong hover:bg-hover hover:text-fg"
                   >
                     {idea}
                   </button>
@@ -210,11 +215,11 @@ export function Studio() {
                       className={cn(
                         "w-full rounded-2xl border px-4 py-3 text-left transition-colors",
                         v.id === gen.activeId
-                          ? "border-line-strong bg-white/[0.05]"
-                          : "border-transparent hover:bg-white/[0.03]",
+                          ? "border-line-strong bg-active"
+                          : "border-transparent hover:bg-hover",
                       )}
                     >
-                      <span className="mb-1 flex items-center justify-between text-[11px] text-fg-subtle">
+                      <span className="mb-1 flex items-center justify-between font-mono text-[10.5px] tracking-wide text-fg-subtle uppercase">
                         <span>
                           v{i + 1} · {getCategory(v.category).label}
                           {v.id === gen.activeId && editor.manualEdits.length > 0 && (
@@ -231,7 +236,7 @@ export function Studio() {
                   <li className="relative overflow-hidden rounded-2xl border border-line px-4 py-3">
                     <span className="shimmer absolute inset-0" />
                     <span className="flex items-center gap-2 text-[13px] text-fg-muted">
-                      <Sparkles className="size-3.5 text-accent" /> Designing…
+                      <span className="size-3 animate-spin rounded-full border-[1.5px] border-line-strong border-t-accent" /> Designing…
                     </span>
                   </li>
                 )}
@@ -240,7 +245,7 @@ export function Studio() {
           </div>
           <div className="border-t border-line p-3 lg:border-t-0">
             {gen.error && (
-              <p role="alert" className="mb-2 flex items-start gap-2 rounded-xl bg-red-500/10 px-3 py-2 text-[12px] text-red-300">
+              <p role="alert" className="mb-2 flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2 text-[12px] text-danger">
                 <AlertTriangle className="mt-px size-3.5 shrink-0" /> {gen.error}
               </p>
             )}
@@ -254,7 +259,7 @@ export function Studio() {
                   type="button"
                   aria-label="Clear selection"
                   onClick={() => editor.select(null)}
-                  className="grid size-5 place-items-center rounded-full hover:bg-white/10 hover:text-fg"
+                  className="grid size-5 place-items-center rounded-full hover:bg-active hover:text-fg"
                 >
                   <X className="size-3" />
                 </button>
@@ -325,7 +330,7 @@ export function Studio() {
               </div>
               <IconButton
                 label={canvas === "dark" ? "Light canvas" : "Dark canvas"}
-                onClick={() => setCanvas((c) => (c === "dark" ? "light" : "dark"))}
+                onClick={() => setCanvasOverride(canvas === "dark" ? "light" : "dark")}
               >
                 {canvas === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </IconButton>
@@ -335,7 +340,7 @@ export function Studio() {
             </div>
           </div>
 
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-[20px] border border-line bg-bg-elevated">
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-line bg-bg-elevated shadow-sm">
             {/* Preview stays mounted so the iframe runtime is reused between versions. */}
             <div className={cn("absolute inset-0 flex justify-center", (view !== "preview" || !active) && "invisible")}>
               <motion.div
@@ -400,7 +405,7 @@ export function Studio() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  className="glass absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-fg-muted shadow-xl"
+                  className="popover absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-fg-muted shadow-xl"
                 >
                   {editor.notice}
                 </motion.p>
@@ -408,13 +413,13 @@ export function Studio() {
             </AnimatePresence>
 
             {previewError && view === "preview" && active && !streaming && (
-              <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-2xl border border-red-500/20 bg-[#1a0d0f]/95 px-4 py-3 text-[12px] text-red-200 backdrop-blur">
+              <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-2xl border border-danger/25 bg-bg-elevated px-4 py-3 text-[12px] text-danger shadow-lg">
                 <AlertTriangle className="mt-px size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 font-mono break-words">{previewError}</span>
                 <button
                   type="button"
                   onClick={() => run(`Fix this runtime error: ${previewError}`)}
-                  className="shrink-0 rounded-full bg-red-500/20 px-2.5 py-1 font-sans font-medium text-red-100 hover:bg-red-500/30"
+                  className="shrink-0 rounded-full bg-danger px-2.5 py-1 font-sans font-medium text-bg-elevated hover:opacity-90"
                 >
                   Auto-fix
                 </button>
@@ -431,7 +436,7 @@ export function Studio() {
               onChange={setPanelTab}
               options={[
                 { id: "design", label: "Design", icon: MousePointer2 },
-                { id: "theme", label: "Theme", icon: Sparkles },
+                { id: "theme", label: "Theme", icon: Palette },
               ]}
             />
           </div>
@@ -502,27 +507,20 @@ function StreamingCode({ code }: { code: string }) {
 
 function EmptyCanvas() {
   return (
-    <div className="absolute inset-0 grid place-items-center p-8">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
-          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-        }}
-      />
+    <div className="dot-grid absolute inset-0 grid place-items-center bg-bg-sunken p-8">
       <div className="relative text-center">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-accent-2/20 via-accent/20 to-accent-3/20 ring-1 ring-white/10"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto mb-6 text-fg-subtle"
         >
-          <Sparkles className="size-6 text-accent" />
+          <LogoMark className="mx-auto size-14" />
         </motion.div>
-        <h2 className="text-gradient text-2xl font-semibold tracking-tight">What should we build?</h2>
-        <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-fg-subtle">
+        <h2 className="text-[28px] leading-tight font-semibold tracking-[-0.03em] text-fg">
+          What should we <span className="font-serif font-normal italic">build?</span>
+        </h2>
+        <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-fg-muted">
           Describe a component, its style and how it should move. Type it or say it.
         </p>
       </div>
@@ -566,7 +564,7 @@ function Segmented<T extends string>({
             {on && (
               <motion.span
                 layoutId={"seg-" + options.map((x) => x.id).join("")}
-                className="absolute inset-0 rounded-full bg-white/10"
+                className="absolute inset-0 rounded-full bg-bg-elevated shadow-sm"
                 transition={{ type: "spring", stiffness: 400, damping: 32 }}
               />
             )}
@@ -597,7 +595,7 @@ function IconButton({
       title={label}
       onClick={onClick}
       disabled={disabled}
-      className="grid size-8 place-items-center rounded-full text-fg-muted transition-colors hover:bg-white/[0.06] hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30"
+      className="grid size-8 place-items-center rounded-full text-fg-muted transition-colors hover:bg-hover hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30"
     >
       {children}
     </button>
@@ -616,7 +614,7 @@ function CopyButton({ text }: { text: string }) {
       }}
       className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[13px] font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
     >
-      {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
+      {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
       <span className="hidden sm:inline">{copied ? "Copied" : "Copy code"}</span>
     </button>
   );

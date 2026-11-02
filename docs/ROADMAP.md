@@ -46,11 +46,12 @@ cost — and the exported code is rewritten with the user's final values.
 - [x] Demo mode — works without an API key using bundled samples
 
 ### Phase 2 — Visual editor ("Figma-style")
-- Click any element in the preview to select it (outline + breadcrumb)
-- Inspector for the selected element: spacing, typography, color, radius, shadow
-- Motion editor: easing curve editor, spring presets, timeline scrubber, replay
-- Undo/redo history, version list per component
-- Variants: generate 3 alternatives side-by-side, pick one
+- [x] Click any element in the preview to select it (outline + breadcrumb)
+- [x] Inspector for the selected element: layout, typography, fill, shape; drag to move, handles to resize
+- [x] App redesign: "Paper & Ink" design system, light/dark theme toggle
+- [ ] Motion editor: easing curve editor, spring presets, timeline scrubber, replay
+- [x] Undo/redo history, version list per component
+- [ ] Variants: generate 3 alternatives side-by-side, pick one
 
 ### Phase 3 — Accounts & library
 - Auth (email + GitHub/Google), Postgres (Neon/Supabase) + Drizzle

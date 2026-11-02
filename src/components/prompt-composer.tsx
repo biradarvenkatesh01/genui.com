@@ -51,10 +51,18 @@ export function PromptComposer({
   return (
     <div
       className={cn(
-        "relative w-full rounded-[22px] shadow-[0_20px_80px_-20px_rgba(139,124,255,0.35)]",
-        busy || speech.listening ? "aurora-border" : "border border-line-strong bg-bg-elevated",
+        "relative w-full overflow-hidden rounded-[20px] border bg-bg-elevated shadow-md transition-[border-color,box-shadow] duration-300 focus-within:border-accent/50 focus-within:shadow-[var(--shadow-md),0_0_0_4px_var(--accent-soft)]",
+        busy || speech.listening ? "border-accent/50" : "border-line-strong",
       )}
     >
+      {busy && (
+        <motion.span
+          aria-hidden
+          className="absolute top-0 left-0 h-[2px] w-1/3 bg-accent"
+          animate={{ x: ["-100%", "300%"] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: [0.45, 0, 0.55, 1] }}
+        />
+      )}
       <textarea
         ref={ref}
         value={value}
@@ -85,12 +93,12 @@ export function PromptComposer({
               aria-pressed={speech.listening}
               className={cn(
                 "relative grid size-9 place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                speech.listening ? "bg-accent-3/15 text-accent-3" : "text-fg-muted hover:bg-white/5 hover:text-fg",
+                speech.listening ? "bg-accent-soft text-accent" : "text-fg-muted hover:bg-hover hover:text-fg",
               )}
             >
               {speech.listening && (
                 <motion.span
-                  className="absolute inset-0 rounded-full border border-accent-3/60"
+                  className="absolute inset-0 rounded-full border border-accent/60"
                   animate={{ scale: [1, 1.5], opacity: [0.8, 0] }}
                   transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
                 />
@@ -113,7 +121,7 @@ export function PromptComposer({
               onClick={submit}
               disabled={!value.trim()}
               aria-label="Generate component"
-              className="grid size-9 place-items-center rounded-full bg-fg text-bg transition-all hover:scale-105 active:scale-95 disabled:scale-100 disabled:bg-white/10 disabled:text-fg-subtle outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="grid size-9 place-items-center rounded-full bg-accent text-accent-fg shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:bg-active disabled:text-fg-subtle disabled:shadow-none outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-elevated"
             >
               <ArrowUp className="size-[18px]" strokeWidth={2.5} />
             </button>
@@ -163,7 +171,7 @@ function CategoryMenu({ value, onChange }: { value: string; onChange: (id: strin
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.32, 0.72, 0, 1] }}
-            className="glass absolute bottom-full left-0 z-50 mb-2 max-h-80 w-60 origin-bottom-left overflow-y-auto rounded-2xl p-1.5 shadow-2xl scrollbar-none"
+            className="popover absolute bottom-full left-0 z-50 mb-2 max-h-80 w-60 origin-bottom-left overflow-y-auto rounded-2xl p-1.5 scrollbar-none"
           >
             {CATEGORIES.map((c) => (
               <li key={c.id}>
@@ -175,7 +183,7 @@ function CategoryMenu({ value, onChange }: { value: string; onChange: (id: strin
                     onChange(c.id);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-white/6"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-hover"
                 >
                   <span>
                     <span className="block text-[13px] font-medium text-fg">{c.label}</span>
