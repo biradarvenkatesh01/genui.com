@@ -254,13 +254,47 @@ export default function Component({ tokens: t = tokens }: { tokens?: typeof toke
 }
 `;
 
-const SAMPLES: Record<string, string> = {
-  button: magneticButton,
-  card: pricingCard,
-  pricing: pricingCard,
-  accordion,
-  tabs: segmentedTabs,
+type Sample = { code: string; reply: string; light: [string, string][] };
+
+const SAMPLES: Record<string, Sample> = {
+  button: {
+    code: magneticButton,
+    reply: "Here's a magnetic call-to-action: it springs toward the pointer and glows on hover.",
+    light: [],
+  },
+  card: {
+    code: pricingCard,
+    reply: "Here's a pricing card with a spotlight border that follows the cursor and a staggered feature list.",
+    light: [
+      ['"#141311"', '"#FFFFFF"'],
+      ['"#F3F1EC"', '"#18181B"'],
+      ['"#9A968E"', '"#6B6964"'],
+      ['"#FF6A3D"', '"#E5501E"'],
+      ['"#FFC29E"', '"#FFB38A"'],
+    ],
+  },
+  accordion: {
+    code: accordion,
+    reply: "Here's an FAQ accordion with a smooth height animation and a plus icon that springs into a close icon.",
+    light: [
+      ['"#181816"', '"#FFFFFF"'],
+      ['"#2A2926"', '"#E7E5DF"'],
+      ['"#EDEBE6"', '"#18181B"'],
+      ['"#A5A29B"', '"#6B6964"'],
+    ],
+  },
+  tabs: {
+    code: segmentedTabs,
+    reply: "Here's a segmented tab control with a sliding pill and a soft blur crossfade between panels.",
+    light: [
+      ['"#EDEBE6"', '"#18181B"'],
+      ['"#181816"', '"#FFFFFF"'],
+      ['"#24231F"', '"#EAE8E2"'],
+      ['"#A5A29B"', '"#6B6964"'],
+    ],
+  },
 };
+SAMPLES.pricing = SAMPLES.card;
 
 const KEYWORDS: [RegExp, string][] = [
   [/accordion|faq|collaps/i, "accordion"],
@@ -269,8 +303,16 @@ const KEYWORDS: [RegExp, string][] = [
   [/button|cta/i, "button"],
 ];
 
-export function pickSample(category: string, prompt: string): string {
-  if (SAMPLES[category]) return SAMPLES[category];
-  for (const [re, id] of KEYWORDS) if (re.test(prompt)) return SAMPLES[id];
-  return pricingCard;
+const DEMO_NOTE = "(Demo mode: this is a bundled sample. Add a GROQ_API_KEY or GEMINI_API_KEY for real generations.)";
+
+/** A bundled reply in the same shape the model produces: a short message, then the component. */
+export function demoReply(category: string, prompt: string, theme: "light" | "dark", refining: boolean): string {
+  let sample = SAMPLES[category];
+  for (const [re, id] of KEYWORDS) if (!sample && re.test(prompt)) sample = SAMPLES[id];
+  sample ??= SAMPLES.card;
+  const code = theme === "light" ? sample.light.reduce((c, [from, to]) => c.split(from).join(to), sample.code) : sample.code;
+  const reply = refining
+    ? "Demo mode can't apply changes, so this is a bundled sample again. Add a GROQ_API_KEY or GEMINI_API_KEY and I'll make that change for real."
+    : `${sample.reply} ${DEMO_NOTE}`;
+  return `${reply}\n\n\`\`\`tsx\n${code}\`\`\``;
 }

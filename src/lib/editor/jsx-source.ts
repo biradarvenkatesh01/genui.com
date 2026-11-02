@@ -23,15 +23,15 @@ export type ElementInfo = {
   tokenVar: string;
 };
 
-type Found = { node: B.JSXElement; ancestors: B.Node[] };
-type Splice = [start: number, end: number, text: string];
+export type Found = { node: B.JSXElement; ancestors: B.Node[] };
+export type Splice = [start: number, end: number, text: string];
 
 const SKIP = new Set(["loc", "start", "end", "extra", "range", "leadingComments", "trailingComments", "innerComments", "comments", "tokens"]);
 const IDENT = /^[A-Za-z_$][\w$]*$/;
 
 let cached: { code: string; ast: B.File | null } | null = null;
 
-function parseSource(code: string): B.File | null {
+export function parseSource(code: string): B.File | null {
   if (cached?.code !== code) {
     let ast: B.File | null = null;
     try {
@@ -75,7 +75,7 @@ function isEditable(el: B.JSXElement, icons: Set<string>): boolean {
   return name.type === "JSXMemberExpression" && name.object.type === "JSXIdentifier" && /^(motion|m)$/.test(name.object.name);
 }
 
-function applySplices(code: string, splices: Splice[]): string {
+export function applySplices(code: string, splices: Splice[]): string {
   return [...splices]
     .sort((a, b) => b[0] - a[0])
     .reduce((out, [start, end, text]) => out.slice(0, start) + text + out.slice(end), code);
@@ -110,7 +110,7 @@ export function instrument(code: string): string {
   return applySplices(code, splices);
 }
 
-function find(code: string, gid: number): Found | null {
+export function find(code: string, gid: number): Found | null {
   const ast = parseSource(code);
   if (!ast) return null;
   let found: Found | null = null;

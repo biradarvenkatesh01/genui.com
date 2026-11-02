@@ -20,6 +20,12 @@ samples from `src/lib/generation/samples.ts`). That is enough to test the full U
 
 - `src/app/api/generate/route.ts` — streams NDJSON events (`delta` / `done` / `error`) from the model.
   Providers live in `src/lib/generation/providers.ts`: Groq if `GROQ_API_KEY` is set, else Gemini, else demo.
+- **Chat protocol:** the model replies with a short plain-text message, then (when something changes)
+  one ```tsx block; question-only answers have no block. `parseReply` in `src/lib/generation/parse.ts`
+  splits them. `use-generation.ts` keeps the thread (`messages`) and the `versions` replies produce.
+- **Model context** (`GenerateRequest` in `src/lib/generation/types.ts`): earlier turns as text, plus the
+  canvas exactly as the user sees it — code with token tweaks and canvas edits applied, version label,
+  manual-edit notes, selected element (snippet, line, ancestor path) and the canvas theme.
 - `src/lib/generation/system-prompt.ts` — **the component contract**. Generated components
   export a `tokens` object (`colors` hex strings, `radius` px, `motion` numbers) and a default
   export taking `{ tokens }`. The preview runtime, Tweak panel and token write-back
@@ -28,7 +34,13 @@ samples from `src/lib/generation/samples.ts`). That is enough to test the full U
   iframe document (import map → esm.sh). Host ↔ iframe talk only via `postMessage`.
   Keep the iframe `sandbox="allow-scripts"` with no `allow-same-origin`.
 - `src/lib/editor/` — canvas editing: `jsx-source.ts` maps canvas elements (`data-gid`) back to
-  source and applies edits; `use-canvas-editor.ts` holds per-version undo history.
+  source and applies edits; `motion-source.ts` reads/writes an element's Motion props
+  (`initial`, `animate`, `whileHover`, `whileTap`, `whileInView`, `transition`);
+  `use-canvas-editor.ts` holds per-version undo history (edits sharing a key coalesce into one step).
+- **Timeline:** the preview runs Motion with `MotionGlobalConfig.useManualTiming` and drives time
+  through `processFrame`, so the canvas can be paused, scrubbed and edited at any moment. After each
+  render it probes how long the entrance runs. Design mode holds time still (at the end by default);
+  interactive mode runs live. Don't reintroduce `skipAnimations` or WAAPI-only paths.
 - `src/components/studio/` — Studio UI. `src/components/marketing/` — landing page.
 
 ## Conventions
@@ -45,6 +57,7 @@ The app's own UI (not generated components) follows one system, defined in `src/
 Avoid the generic AI-product look: no purple/blue/pink gradients, gradient text, glow blobs,
 glassmorphism or sparkle icons.
 
+- **Dark theme is charcoal grey** (`#1d1d1c` bg, `#262625` panels, off-white `#eeece7` text) — never black.
 - **Palette:** warm paper/ink neutrals plus one signal accent (vermilion `#E5501E` light /
   `#FF6A3D` dark). The accent marks only the primary action, selection and focus.
 - **Tokens:** `bg`, `bg-elevated`, `bg-sunken`, `line`, `line-strong`, `fg`, `fg-muted`, `fg-subtle`,

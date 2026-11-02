@@ -225,7 +225,7 @@ export function DesignPanel({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-b border-line px-5 py-4">
       <h3 className="mb-3 text-[11px] font-semibold tracking-[0.08em] text-fg-subtle uppercase">{title}</h3>
@@ -328,7 +328,7 @@ function NumberInput({
   );
 }
 
-function Slider({
+export function Slider({
   label,
   value,
   min,

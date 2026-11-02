@@ -13,34 +13,35 @@ import {
   Hand,
   Monitor,
   MousePointer2,
-  Moon,
+  Contrast,
   Plus,
   Redo2,
-  RotateCw,
   Smartphone,
   Palette,
-  Sun,
+  Spline,
   Tablet,
   Undo2,
   X,
 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/logo";
-import { ThemeToggle, useTheme } from "@/components/theme-toggle";
+import { ThemeToggle, readTheme, useTheme } from "@/components/theme-toggle";
 import { PromptComposer } from "@/components/prompt-composer";
+import { ChatThread } from "./chat-thread";
 import { CodeView } from "./code-view";
 import { DesignPanel } from "./design-panel";
-import { PreviewFrame, type Canvas, type CanvasKey, type PreviewHandle } from "./preview-frame";
+import { MotionPanel } from "./motion-panel";
+import { PreviewFrame, type Canvas, type CanvasKey, type PreviewHandle, type TimelineState } from "./preview-frame";
+import { TimelineBar } from "./timeline-bar";
 import { TweakPanel } from "./tweak-panel";
 import { useCanvasEditor } from "@/lib/editor/use-canvas-editor";
 import type { StylePatch } from "@/lib/editor/jsx-source";
 import { useGeneration } from "@/lib/generation/use-generation";
-import { PROMPT_IDEAS, getCategory } from "@/lib/generation/categories";
 import { applyTokensToSource, isHexColor, type TokenObject } from "@/lib/preview/tokens";
 import { cn } from "@/lib/cn";
 
 type View = "preview" | "code";
 type Mode = "design" | "interact";
-type PanelTab = "design" | "theme";
+type PanelTab = "design" | "motion" | "theme";
 type Device = "desktop" | "tablet" | "mobile";
 
 const DEVICE_WIDTH: Record<Device, string> = { desktop: "100%", tablet: "768px", mobile: "390px" };
@@ -60,6 +61,7 @@ export function Studio() {
   const [mode, setMode] = useState<Mode>("design");
   const [panelTab, setPanelTab] = useState<PanelTab>("design");
   const [focusTextKey, setFocusTextKey] = useState(0);
+  const [timeline, setTimeline] = useState<TimelineState | null>(null);
   const preview = useRef<PreviewHandle>(null);
   // Per-version state, keyed by version id so switching versions needs no reset.
   const [defaultsById, setDefaultsById] = useState<Record<string, TokenObject | null>>({});
@@ -91,20 +93,32 @@ export function Studio() {
     return Object.fromEntries(Object.entries(colors).filter((e): e is [string, string] => isHexColor(e[1])));
   }, [overrides, defaults]);
 
-  function run(text: string) {
-    if (!active) {
-      gen.generate(text, category);
-    } else {
-      const info = editor.info;
-      // Token tweaks can reflow the tokens literal; shift the line to match the code being sent.
-      const lineShift = exportCode.split("\n").length - active.code.split("\n").length;
-      gen.generate(text, category, {
-        baseCode: exportCode,
-        history: gen.versions.slice(0, gen.versions.indexOf(active) + 1).map((v) => v.prompt),
-        manualEdits: editor.manualEdits,
-        selection: info ? { tag: info.tag, line: info.line + lineShift, snippet: info.snippet } : undefined,
-      });
-    }
+  /** Sends a message with the canvas exactly as the user sees it: tweaks, hand edits and selection included. */
+  function run(text: string, target?: string) {
+    const info = active ? editor.info : null;
+    // Token tweaks can reflow the tokens literal; shift the line to match the code being sent.
+    const lineShift = active ? exportCode.split("\n").length - active.code.split("\n").length : 0;
+    gen.send(text, {
+      category,
+      theme: canvas,
+      target: target ?? info?.tag,
+      canvas: active
+        ? {
+            code: exportCode,
+            name: active.name,
+            version: `v${gen.versions.indexOf(active) + 1} of ${gen.versions.length}`,
+            manualEdits: editor.manualEdits,
+            selection: info
+              ? {
+                  tag: info.tag,
+                  line: info.line + lineShift,
+                  snippet: info.snippet,
+                  path: editor.computed?.ancestors.map((a) => a.tag),
+                }
+              : undefined,
+          }
+        : undefined,
+    });
     setPrompt("");
   }
 
@@ -144,7 +158,7 @@ export function Studio() {
     const initial = params.get("prompt");
     if (initial && !started.current) {
       started.current = true;
-      gen.generate(initial, params.get("category") ?? "auto");
+      gen.send(initial, { category: params.get("category") ?? "auto", theme: readTheme() });
     }
   }, [params, gen]);
 
@@ -190,65 +204,17 @@ export function Studio() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Left: conversation */}
         <aside className="order-2 flex min-h-0 shrink-0 flex-col border-line lg:order-1 lg:w-[340px] lg:border-r">
-          <div className="hidden min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:block">
-            {gen.versions.length === 0 && !streaming ? (
-              <div className="space-y-2">
-                <p className="mb-3 text-[12px] font-medium text-fg-subtle">Try one of these</p>
-                {PROMPT_IDEAS.slice(0, 4).map((idea) => (
-                  <button
-                    key={idea}
-                    type="button"
-                    onClick={() => run(idea)}
-                    className="block w-full rounded-2xl border border-line px-4 py-3 text-left text-[13px] leading-snug text-fg-muted transition-colors hover:border-line-strong hover:bg-hover hover:text-fg"
-                  >
-                    {idea}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <ol className="space-y-3">
-                {gen.versions.map((v, i) => (
-                  <li key={v.id}>
-                    <button
-                      type="button"
-                      onClick={() => gen.setActiveId(v.id)}
-                      className={cn(
-                        "w-full rounded-2xl border px-4 py-3 text-left transition-colors",
-                        v.id === gen.activeId
-                          ? "border-line-strong bg-active"
-                          : "border-transparent hover:bg-hover",
-                      )}
-                    >
-                      <span className="mb-1 flex items-center justify-between font-mono text-[10.5px] tracking-wide text-fg-subtle uppercase">
-                        <span>
-                          v{i + 1} · {getCategory(v.category).label}
-                          {v.id === gen.activeId && editor.manualEdits.length > 0 && (
-                            <> · {editor.manualEdits.length} canvas edit{editor.manualEdits.length === 1 ? "" : "s"}</>
-                          )}
-                        </span>
-                        {v.id === gen.activeId && <span className="size-1.5 rounded-full bg-accent" />}
-                      </span>
-                      <span className="line-clamp-3 text-[13px] leading-snug text-fg">{v.prompt}</span>
-                    </button>
-                  </li>
-                ))}
-                {streaming && (
-                  <li className="relative overflow-hidden rounded-2xl border border-line px-4 py-3">
-                    <span className="shimmer absolute inset-0" />
-                    <span className="flex items-center gap-2 text-[13px] text-fg-muted">
-                      <span className="size-3 animate-spin rounded-full border-[1.5px] border-line-strong border-t-accent" /> Designing…
-                    </span>
-                  </li>
-                )}
-              </ol>
-            )}
+          <div className="min-h-0 flex-1 overflow-y-auto max-lg:max-h-[45vh]">
+            <ChatThread
+              messages={gen.messages}
+              versions={gen.versions}
+              activeId={gen.activeId}
+              onSelectVersion={gen.setActiveId}
+              onRetry={(text, target) => run(text, target)}
+              onSuggestion={(text) => run(text)}
+            />
           </div>
-          <div className="border-t border-line p-3 lg:border-t-0">
-            {gen.error && (
-              <p role="alert" className="mb-2 flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2 text-[12px] text-danger">
-                <AlertTriangle className="mt-px size-3.5 shrink-0" /> {gen.error}
-              </p>
-            )}
+          <div className="border-t border-line p-3">
             {editor.info && (
               <div className="mb-2 flex items-center gap-2 rounded-xl border border-accent/25 bg-accent/10 px-3 py-1.5 text-[12px] text-fg-muted">
                 <MousePointer2 className="size-3.5 shrink-0 text-accent" />
@@ -275,9 +241,9 @@ export function Studio() {
               onStop={gen.stop}
               placeholder={
                 editor.info
-                  ? `Change this ${editor.info.tag} — “make it bigger”, “add an icon”…`
+                  ? `Ask about or change this ${editor.info.tag}…`
                   : active
-                    ? "Refine it — “make it pink”, “add a hover tilt”…"
+                    ? "Ask for a change, or ask a question…"
                     : "Describe a component…"
               }
             />
@@ -329,101 +295,105 @@ export function Studio() {
                 />
               </div>
               <IconButton
-                label={canvas === "dark" ? "Light canvas" : "Dark canvas"}
+                label={canvas === "dark" ? "Preview on a light canvas" : "Preview on a dark canvas"}
                 onClick={() => setCanvasOverride(canvas === "dark" ? "light" : "dark")}
               >
-                {canvas === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-              </IconButton>
-              <IconButton label="Replay animation" onClick={() => setReplayKey((k) => k + 1)}>
-                <RotateCw className="size-4" />
+                <Contrast className={cn("size-4 transition-transform duration-300", canvas === "light" && "rotate-180")} />
               </IconButton>
             </div>
           </div>
 
-          <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-line bg-bg-elevated shadow-sm">
-            {/* Preview stays mounted so the iframe runtime is reused between versions. */}
-            <div className={cn("absolute inset-0 flex justify-center", (view !== "preview" || !active) && "invisible")}>
-              <motion.div
-                animate={{ width: DEVICE_WIDTH[device] }}
-                transition={{ type: "spring", stiffness: 260, damping: 30 }}
-                className={cn("h-full max-w-full", device !== "desktop" && "border-x border-line")}
-              >
-                <PreviewFrame
-                  code={active?.code ?? null}
-                  tokens={overrides}
-                  canvas={canvas}
-                  replayKey={replayKey}
-                  editing={editing}
-                  selected={editor.info && selectedGid !== null ? { gid: selectedGid, label: editor.info.tag } : null}
-                  onDefaultTokens={(t) => setDefaultsById((m) => ({ ...m, [activeId]: t }))}
-                  onError={(e) => setErrorById((m) => ({ ...m, [activeId]: e }))}
-                  onSelect={(s) => {
-                    editor.onCanvasSelect(s);
-                    if (s) setPanelTab("design");
-                  }}
-                  onEdit={(e) => {
-                    if (e.op === "style") editor.applyStyle(e.gid, e.style);
-                    // Text that can't be written back: re-render so the canvas matches the code again.
-                    else if (!editor.applyText(e.gid, e.text)) setReplayKey((k) => k + 1);
-                  }}
-                  onKey={onCanvasKey}
-                  onTextRequest={(gid) => {
-                    editor.select(gid);
-                    setPanelTab("design");
-                    setFocusTextKey((k) => k + 1);
-                  }}
-                  ref={preview}
-                />
-              </motion.div>
-            </div>
-
-            {view === "code" && active && !streaming && (
-              <div className="absolute inset-0">
-                <CodeView code={exportCode} />
-              </div>
-            )}
-
-            <AnimatePresence>
-              {streaming && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-bg-elevated shadow-sm">
+            <div className="relative min-h-0 flex-1">
+              {/* Preview stays mounted so the iframe runtime is reused between versions. */}
+              <div className={cn("absolute inset-0 flex justify-center", (view !== "preview" || !active) && "invisible")}>
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-bg-elevated/95 backdrop-blur-sm"
+                  animate={{ width: DEVICE_WIDTH[device] }}
+                  transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                  className={cn("h-full max-w-full", device !== "desktop" && "border-x border-line")}
                 >
-                  <StreamingCode code={gen.streamingCode} />
+                  <PreviewFrame
+                    code={active?.code ?? null}
+                    tokens={overrides}
+                    canvas={canvas}
+                    replayKey={replayKey}
+                    editing={editing}
+                    selected={editor.info && selectedGid !== null ? { gid: selectedGid, label: editor.info.tag } : null}
+                    onDefaultTokens={(t) => setDefaultsById((m) => ({ ...m, [activeId]: t }))}
+                    onError={(e) => setErrorById((m) => ({ ...m, [activeId]: e }))}
+                    onSelect={(s) => {
+                      editor.onCanvasSelect(s);
+                      // Selecting keeps the Motion tab open; from Theme it switches to Design.
+                      if (s) setPanelTab((tab) => (tab === "theme" ? "design" : tab));
+                    }}
+                    onEdit={(e) => {
+                      if (e.op === "style") editor.applyStyle(e.gid, e.style);
+                      // Text that can't be written back: re-render so the canvas matches the code again.
+                      else if (!editor.applyText(e.gid, e.text)) setReplayKey((k) => k + 1);
+                    }}
+                    onKey={onCanvasKey}
+                    onTextRequest={(gid) => {
+                      editor.select(gid);
+                      setPanelTab("design");
+                      setFocusTextKey((k) => k + 1);
+                    }}
+                    onTimeline={setTimeline}
+                    ref={preview}
+                  />
                 </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!active && !streaming && <EmptyCanvas />}
-
-            <AnimatePresence>
-              {editor.notice && (
-                <motion.p
-                  role="status"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  className="popover absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-fg-muted shadow-xl"
-                >
-                  {editor.notice}
-                </motion.p>
-              )}
-            </AnimatePresence>
-
-            {previewError && view === "preview" && active && !streaming && (
-              <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-2xl border border-danger/25 bg-bg-elevated px-4 py-3 text-[12px] text-danger shadow-lg">
-                <AlertTriangle className="mt-px size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 font-mono break-words">{previewError}</span>
-                <button
-                  type="button"
-                  onClick={() => run(`Fix this runtime error: ${previewError}`)}
-                  className="shrink-0 rounded-full bg-danger px-2.5 py-1 font-sans font-medium text-bg-elevated hover:opacity-90"
-                >
-                  Auto-fix
-                </button>
               </div>
+
+              {view === "code" && active && !streaming && (
+                <div className="absolute inset-0">
+                  <CodeView code={exportCode} />
+                </div>
+              )}
+
+              <AnimatePresence>
+                {streaming && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-bg-elevated/95 backdrop-blur-sm"
+                  >
+                    <StreamingCode code={gen.streamingCode} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {!active && !streaming && <EmptyCanvas />}
+
+              <AnimatePresence>
+                {editor.notice && (
+                  <motion.p
+                    role="status"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    className="popover absolute top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-[12px] text-fg-muted shadow-xl"
+                  >
+                    {editor.notice}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+
+              {previewError && view === "preview" && active && !streaming && (
+                <div className="absolute inset-x-4 bottom-4 flex items-start gap-2 rounded-2xl border border-danger/25 bg-bg-elevated px-4 py-3 text-[12px] text-danger shadow-lg">
+                  <AlertTriangle className="mt-px size-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 font-mono break-words">{previewError}</span>
+                  <button
+                    type="button"
+                    onClick={() => run(`Fix this runtime error: ${previewError}`)}
+                    className="shrink-0 rounded-full bg-danger px-2.5 py-1 font-sans font-medium text-bg-elevated hover:opacity-90"
+                  >
+                    Auto-fix
+                  </button>
+                </div>
+              )}
+            </div>
+            {view === "preview" && active && !streaming && (
+              <TimelineBar state={timeline} interactive={mode === "interact"} onAction={(a) => preview.current?.timeline(a)} />
             )}
           </div>
         </main>
@@ -436,6 +406,7 @@ export function Studio() {
               onChange={setPanelTab}
               options={[
                 { id: "design", label: "Design", icon: MousePointer2 },
+                { id: "motion", label: "Motion", icon: Spline },
                 { id: "theme", label: "Theme", icon: Palette },
               ]}
             />
@@ -447,7 +418,9 @@ export function Studio() {
               onChange={setOverrides}
               onReset={() => setOverrides(null)}
             />
-          ) : editor.info ? (
+          ) : panelTab === "motion" && editor.info && editor.motion ? (
+            <MotionPanel tag={editor.info.tag} motion={editor.motion} onApply={editor.applyMotion} onAnimate={editor.makeAnimatable} />
+          ) : panelTab === "design" && editor.info ? (
             <DesignPanel
               info={editor.info}
               computed={editor.computed}
@@ -462,8 +435,20 @@ export function Studio() {
             />
           ) : (
             <div className="space-y-3 px-5 py-6 text-[13px] leading-relaxed text-fg-subtle">
-              <p>{active ? "Click any element on the canvas to edit it." : "Generate a component, then edit it here like a design."}</p>
-              {active && (
+              <p>
+                {!active
+                  ? "Generate a component, then edit it here like a design."
+                  : panelTab === "motion"
+                    ? "Click any element on the canvas to edit how it animates."
+                    : "Click any element on the canvas to edit it."}
+              </p>
+              {active && panelTab === "motion" ? (
+                <ul className="space-y-1.5 text-[12px]">
+                  <li>Scrub the timeline to any moment — editing works mid-animation</li>
+                  <li>Set its entrance, hover and press states</li>
+                  <li>Tune easing curves and springs</li>
+                </ul>
+              ) : active && (
                 <ul className="space-y-1.5 text-[12px]">
                   <li>Drag to move · handles to resize</li>
                   <li>Double-click text to retype it</li>

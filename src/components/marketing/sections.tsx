@@ -351,8 +351,8 @@ export function HowItWorks() {
 /* ───────────────────────── Roadmap ───────────────────────── */
 
 const ROADMAP = [
-  ["Now", "Prompt and voice generation, live preview, canvas editing, theme controls, code export", true],
-  ["Next", "Motion editor with easing curves and spring presets, side-by-side variants", false],
+  ["Now", "Chat-driven generation, canvas editing, a motion editor with a scrubbable timeline, code export", true],
+  ["Next", "Side-by-side variants, more export targets", false],
   ["Soon", "Accounts, saved libraries, shareable links, brand presets", false],
   ["Later", "Pro plans, team workspaces, CLI and editor extensions", false],
 ] as const;

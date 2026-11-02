@@ -20,10 +20,11 @@ function subscribe(onChange: () => void) {
   return () => observer.disconnect();
 }
 
-const read = (): Theme => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+/** The theme on <html> right now (set before paint), for code that runs outside render. */
+export const readTheme = (): Theme => (document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 
 export function useTheme(): Theme {
-  return useSyncExternalStore(subscribe, read, () => "light");
+  return useSyncExternalStore(subscribe, readTheme, () => "light");
 }
 
 export function setTheme(theme: Theme) {

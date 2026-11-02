@@ -15,7 +15,8 @@ const importMap = {
     "react-dom": `https://esm.sh/react-dom@${VERSIONS.react}?external=react`,
     "react-dom/client": `https://esm.sh/react-dom@${VERSIONS.react}/client?external=react`,
     "motion/react": `https://esm.sh/motion@${VERSIONS.motion}/react?external=react,react-dom`,
-    "framer-motion": `https://esm.sh/framer-motion@${VERSIONS.motion}?external=react,react-dom`,
+    // Same module as motion/react, so both names share one clock (see the timeline below).
+    "framer-motion": `https://esm.sh/motion@${VERSIONS.motion}/react?external=react,react-dom`,
     "lucide-react": `https://esm.sh/lucide-react@${VERSIONS.lucide}?external=react`,
   },
 };
@@ -23,6 +24,53 @@ const importMap = {
 const script = String.raw`
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
+import { MotionGlobalConfig, processFrame } from "motion/react";
+
+// ---- Timeline ----
+// Motion runs on a clock we own: with manual timing every animation is computed in JS
+// from the time we pass to processFrame, so the canvas can be paused, scrubbed and
+// played at any speed — and edited at any moment of an animation.
+MotionGlobalConfig.useManualTiming = true;
+
+const PROBE_STEP = 50;
+const PROBE_MAX = 6000;
+const SETTLE = 400;
+const LOOP_LENGTH = 3000;
+
+const tl = {
+  now: 1000,       // virtual ms passed to Motion
+  mountAt: 1000,   // virtual time the current component instance mounted
+  t: 0,            // position: ms since mount
+  duration: 0,     // when the entrance settles (ms)
+  loops: false,    // something animates forever
+  playing: false,
+  rate: 1,
+  atEnd: true,     // follow the end when the duration changes
+  lastReal: 0,
+  lastPost: 0,
+};
+
+function tick(T) {
+  tl.now = T;
+  processFrame(T);
+}
+
+/** CSS animations and transitions (Tailwind animate-*) follow the same position. */
+function cssAnimations(fn) {
+  const rootEl = document.getElementById("root");
+  if (!rootEl || !rootEl.getAnimations) return;
+  for (const a of rootEl.getAnimations({ subtree: true })) {
+    try { fn(a); } catch {}
+  }
+}
+
+function postTimeline(force) {
+  const real = performance.now();
+  if (!force && real - tl.lastPost < 33) return;
+  tl.lastPost = real;
+  post({ type: "timeline", t: Math.round(tl.t), duration: tl.duration, loops: tl.loops, playing: tl.playing, rate: tl.rate });
+}
 
 const root = createRoot(document.getElementById("root"));
 let mod = null;
@@ -49,13 +97,134 @@ function merge(base, extra) {
   return out;
 }
 
-function draw() {
-  if (!mod || typeof mod.default !== "function") return;
+const settle = () => new Promise((r) => setTimeout(r, 0));
+// One real frame: IntersectionObserver (whileInView) reports after layout.
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
+/** A fresh instance of the component, mounted at the current virtual time with its animations started. */
+async function remount() {
+  if (!mod || typeof mod.default !== "function") return false;
   const Component = mod.default;
   const tokens = mod.tokens ? merge(mod.tokens, overrides) : undefined;
-  root.render(React.createElement(Boundary, { key: currentUrl + ":" + replays },
-    React.createElement(Component, tokens ? { tokens } : {})));
+  replays++;
+  tl.mountAt = tl.now;
+  tl.t = 0;
+  flushSync(() => {
+    root.render(React.createElement(Boundary, { key: currentUrl + ":" + replays },
+      React.createElement(Component, tokens ? { tokens } : {})));
+  });
+  // Let effects run and Motion resolve keyframes, so animations start at mountAt.
+  await settle();
+  tick(tl.now);
+  await nextFrame();
+  tick(tl.now);
+  cssAnimations((a) => { a.pause(); a.currentTime = 0; });
+  return true;
 }
+
+/** Fast-forwards a fresh instance to find when its entrance animation settles. */
+async function probe() {
+  if (!(await remount())) return;
+  const rootEl = document.getElementById("root");
+  let last = rootEl.innerHTML;
+  let changedAt = 0;
+  let ms = PROBE_STEP;
+  for (; ms <= PROBE_MAX; ms += PROBE_STEP) {
+    tick(tl.mountAt + ms);
+    const snap = rootEl.innerHTML;
+    if (snap !== last) { last = snap; changedAt = ms; }
+    else if (ms - changedAt >= SETTLE) break;
+  }
+  tl.loops = ms > PROBE_MAX;
+  tl.duration = tl.loops ? LOOP_LENGTH : changedAt;
+}
+
+async function seekTo(t, fresh) {
+  const target = Math.max(0, Math.min(t, tl.duration || 0));
+  if (fresh || target < tl.t) await remount();
+  tl.t = target;
+  tick(tl.mountAt + target);
+  cssAnimations((a) => { a.pause(); a.currentTime = target; });
+  postTimeline(true);
+}
+
+function play() {
+  if (!tl.playing) {
+    tl.playing = true;
+    tl.lastReal = performance.now();
+    cssAnimations((a) => { a.playbackRate = tl.rate; a.play(); });
+  }
+  postTimeline(true);
+}
+
+function pause() {
+  tl.playing = false;
+  cssAnimations((a) => a.pause());
+  postTimeline(true);
+}
+
+// One timeline job at a time; a burst of scrubs collapses into the latest position.
+let job = Promise.resolve();
+let queuedSeek = null;
+function enqueue(fn) {
+  job = job.then(fn).catch((err) => post({ type: "error", message: String(err && err.message || err) }));
+  return job;
+}
+
+function requestSeek(t) {
+  pause();
+  tl.atEnd = false;
+  const first = queuedSeek === null;
+  queuedSeek = t;
+  if (first) enqueue(async () => {
+    const target = queuedSeek;
+    queuedSeek = null;
+    await seekTo(target, false);
+  });
+}
+
+/** After new code or tokens: measure the animation again, then go back to where the user was. */
+function refresh() {
+  return enqueue(async () => {
+    const keepAt = tl.t;
+    await probe();
+    if (editing) {
+      await seekTo(tl.atEnd ? tl.duration : keepAt, true);
+    } else {
+      await remount();
+      play();
+    }
+    needsReport = Boolean(selectedGid);
+  });
+}
+
+function replay() {
+  return enqueue(async () => {
+    pause();
+    tl.atEnd = false;
+    await remount();
+    play();
+  });
+}
+
+function driver(real) {
+  requestAnimationFrame(driver);
+  if (!tl.playing) { tl.lastReal = real; return; }
+  const dt = Math.min(real - tl.lastReal, 100) * tl.rate;
+  tl.lastReal = real;
+  tl.t += dt;
+  // In design mode a run stops at the end, ready to edit; interactive mode keeps time flowing.
+  if (editing && !tl.loops && tl.t >= tl.duration) {
+    tl.t = tl.duration;
+    tl.atEnd = true;
+    tick(tl.mountAt + tl.t);
+    pause();
+    return;
+  }
+  tick(tl.mountAt + tl.t);
+  postTimeline(false);
+}
+requestAnimationFrame(driver);
 
 async function load(js) {
   const url = URL.createObjectURL(new Blob([js], { type: "text/javascript" }));
@@ -65,8 +234,7 @@ async function load(js) {
     if (currentUrl) URL.revokeObjectURL(currentUrl);
     currentUrl = url;
     mod = next;
-    draw();
-    needsReport = Boolean(selectedGid);
+    await refresh();
     post({ type: "rendered", tokens: next.tokens ?? null });
   } catch (err) {
     URL.revokeObjectURL(url);
@@ -78,10 +246,25 @@ addEventListener("message", (e) => {
   const msg = e.data;
   if (!msg || msg.source !== "genui-host") return;
   if (msg.type === "render") { overrides = msg.tokens ?? null; load(msg.js); }
-  if (msg.type === "tokens") { overrides = msg.tokens; draw(); }
-  if (msg.type === "replay") { replays++; draw(); }
+  if (msg.type === "tokens") { overrides = msg.tokens; refresh(); }
+  if (msg.type === "replay") replay();
   if (msg.type === "theme") document.documentElement.dataset.canvas = msg.canvas;
   if (msg.type === "mode") setEditing(msg.edit);
+  if (msg.type === "timeline") {
+    if (msg.action === "play") enqueue(async () => {
+      // Playing from the end starts over.
+      if (!tl.loops && tl.t >= tl.duration) await remount();
+      tl.atEnd = false;
+      play();
+    });
+    if (msg.action === "pause") pause();
+    if (msg.action === "seek") requestSeek(Number(msg.t) || 0);
+    if (msg.action === "rate") {
+      tl.rate = Math.max(0.1, Math.min(Number(msg.rate) || 1, 4));
+      cssAnimations((a) => (a.playbackRate = tl.rate));
+      postTimeline(true);
+    }
+  }
   if (msg.type === "select") {
     tagChip.textContent = msg.label || "";
     if (msg.gid !== selectedGid) {
@@ -227,13 +410,14 @@ function setEditing(on) {
     gesture = null;
     hoverEl = null;
   }
-  import("motion/react")
-    .then((m) => {
-      m.MotionGlobalConfig.skipAnimations = on;
-      replays++;
-      draw();
-    })
-    .catch(() => {});
+  // Design mode holds the timeline still (at the end, until the user scrubs); interactive mode runs live.
+  if (on) {
+    pause();
+    tl.atEnd = true;
+    enqueue(() => seekTo(tl.duration, false));
+  } else {
+    replay();
+  }
 }
 
 function finishText(commit) {
@@ -400,7 +584,7 @@ export const PREVIEW_HTML = `<!doctype html>
     -webkit-font-smoothing: antialiased; transition: background .3s ease;
   }
   html[data-canvas="dark"] body {
-    background: #0f0f0e radial-gradient(rgba(237,235,230,.07) 1px, transparent 1px) 0 0 / 18px 18px; color: #edebe6;
+    background: #1d1d1c radial-gradient(rgba(237,235,230,.07) 1px, transparent 1px) 0 0 / 18px 18px; color: #edebe6;
   }
   html[data-canvas="light"] body {
     background: #f6f5f1 radial-gradient(rgba(20,19,17,.09) 1px, transparent 1px) 0 0 / 18px 18px; color: #141311;

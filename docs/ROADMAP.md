@@ -49,7 +49,9 @@ cost — and the exported code is rewritten with the user's final values.
 - [x] Click any element in the preview to select it (outline + breadcrumb)
 - [x] Inspector for the selected element: layout, typography, fill, shape; drag to move, handles to resize
 - [x] App redesign: "Paper & Ink" design system, light/dark theme toggle
-- [ ] Motion editor: easing curve editor, spring presets, timeline scrubber, replay
+- [x] Motion editor: entrance/hover/press/in-view states, easing curve editor, spring presets
+- [x] Timeline: play, pause, scrub and slow down the canvas; edit at any moment of an animation
+- [x] Chat: AI replies explain what changed; questions get text answers; full canvas context sent
 - [x] Undo/redo history, version list per component
 - [ ] Variants: generate 3 alternatives side-by-side, pick one
 

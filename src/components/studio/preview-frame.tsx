@@ -33,9 +33,24 @@ export type CanvasEdit =
 
 export type CanvasKey = { key: string; mod: boolean; shift: boolean };
 
+/** The preview's animation clock, as reported by the runtime. */
+export type TimelineState = {
+  /** Position in ms since the component mounted. */
+  t: number;
+  /** When the entrance animation settles (ms); 0 when nothing animates on mount. */
+  duration: number;
+  /** Something repeats forever; `duration` is then a window to scrub through. */
+  loops: boolean;
+  playing: boolean;
+  rate: number;
+};
+
+export type TimelineAction = { action: "play" } | { action: "pause" } | { action: "seek"; t: number } | { action: "rate"; rate: number };
+
 export type PreviewHandle = {
   /** Applies styles to the DOM right away, ahead of the source edit that makes them stick. */
   previewStyle: (gid: number, style: Record<string, string>) => void;
+  timeline: (action: TimelineAction) => void;
 };
 
 type Props = {
@@ -51,6 +66,7 @@ type Props = {
   onEdit: (edit: CanvasEdit) => void;
   onKey: (key: CanvasKey) => void;
   onTextRequest: (gid: number) => void;
+  onTimeline: (state: TimelineState) => void;
   ref?: Ref<PreviewHandle>;
 };
 
@@ -65,6 +81,7 @@ type PreviewMessage = { source: "genui-preview" } & (
   | { type: "edit"; op: "text"; gid: string; text: string }
   | ({ type: "key" } & CanvasKey)
   | { type: "text-request"; gid: string }
+  | ({ type: "timeline" } & TimelineState)
 );
 
 /**
@@ -84,6 +101,7 @@ export function PreviewFrame({
   onEdit,
   onKey,
   onTextRequest,
+  onTimeline,
   ref,
 }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -117,6 +135,9 @@ export function PreviewFrame({
       case "text-request":
         onTextRequest(Number(msg.gid));
         break;
+      case "timeline":
+        onTimeline({ t: msg.t, duration: msg.duration, loops: msg.loops, playing: msg.playing, rate: msg.rate });
+        break;
     }
   });
   const reportError = useEffectEvent((m: string) => onError(m));
@@ -127,6 +148,7 @@ export function PreviewFrame({
 
   useImperativeHandle(ref, () => ({
     previewStyle: (gid, style) => send({ type: "preview-style", gid: String(gid), style }),
+    timeline: (action) => send({ type: "timeline", ...action }),
   }));
 
   useEffect(() => {

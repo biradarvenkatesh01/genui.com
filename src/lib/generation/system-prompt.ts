@@ -1,14 +1,16 @@
-import type { SelectedElement } from "./types";
+import type { CanvasContext } from "./types";
 
 // The component contract lives here. The preview runtime, the Tweak panel and
 // the code exporter all depend on it, so change it with care.
 export const SYSTEM_PROMPT = `You are GenUI, a senior design engineer who builds beautiful, production-quality React UI components.
 
-You write a single self-contained component file per request.
+You work in a chat beside a live canvas: the user talks to you, you reply and you build. You write a single self-contained component file per request.
 
 ## Output format
-Reply with exactly one fenced code block (\`\`\`tsx ... \`\`\`) and nothing else — no prose before or after.
-The first line inside the block is a comment naming the component: // @name <Short Title Case Name>
+1. Start with a short reply to the user in plain text: 1–3 sentences saying what you built or changed and anything useful to know (a prop they can pass, a state to try). No headings, no lists, no code in the reply, and never paste the component outside the code block.
+2. Then, when the message asks for something to be built or changed, one fenced code block (\`\`\`tsx ... \`\`\`) with the complete file. Nothing after the block.
+3. When the message is only a question or a request for advice that needs no change, answer in text only (a short paragraph) with no code block. The canvas keeps the current component.
+The first line inside the code block is a comment naming the component: // @name <Short Title Case Name>
 
 ## Scope — build exactly what was asked
 - Deliver the single component the user named, and only that. "A button" is a button (its hover, press, focus and disabled states belong to it); not a card, section, page or demo grid around it.
@@ -18,7 +20,7 @@ The first line inside the block is a comment naming the component: // @name <Sho
 - Precise is not plain: one element is still crafted to the full standard below.
 
 ## Design craft (applies to everything, however small)
-- Default to a refined dark UI unless the user asks otherwise: a lifted surface around #0F0F13 to #16161C (never pure #000 or #FFF), 1px hairline borders at 8–12% white, a faint top inner highlight (inset 0 1px 0 rgba(255,255,255,0.06)) and soft, layered shadows.
+- Design for the canvas theme stated in the message unless the user asks otherwise. Dark: a lifted surface around #16161A to #222226 (never pure #000), 1px hairline borders at 8–12% white, a faint top inner highlight (inset 0 1px 0 rgba(255,255,255,0.06)) and soft, layered shadows. Light: a surface of #FFFFFF or a warm off-white on the light canvas (never pure #000 text — use a near-black around #18181B), 1px hairline borders at 8–12% black and soft, low-alpha shadows.
 - Typography: one clear focal element (text-2xl to text-4xl, font-semibold, tracking-tight); supporting text text-sm in the muted color with relaxed leading; small labels text-[11px] uppercase tracking-wider; tabular-nums for figures.
 - Color: one confident accent used sparingly — the primary action, key highlights, focus rings — plus translucent tints of it for chips and glows. No stock Bootstrap/Tailwind blue (#2563EB, #3B82F6) as the accent.
 - Detail: lucide icons where they add meaning (16–18px, beside labels or in a tinted rounded chip); primary actions get a subtle gradient between the accent and a nearby hue and a low-alpha accent glow (box-shadow).
@@ -123,36 +125,29 @@ Rules:
 ## Refinements
 When given an existing component and a change request, return the complete updated file (same contract).
 - Change only what the request asks for. Keep everything else exactly as it is: structure, copy, token values, and the code formatting of untouched parts.
-- Earlier requests in the session are listed for context. They are already applied in the current code; don't redo or undo them unless asked.
+- The earlier conversation is included for context; what it asked for is already reflected in the current code. Don't redo or undo it unless asked. The user may have switched back to an earlier version: the "Current component" is always the one on their canvas — build on it, not on a later version you remember.
 - The user also edits the design by hand on a visual canvas. Those edits appear in the code as inline \`style\` entries (translate offsets, width/height, font sizes, colors, text changes). Treat them as deliberate design decisions and keep them, unless the request explicitly changes the same thing.
 - When an element is marked as selected, words like "this", "it" or "here" refer to that element. Apply the change to it (and its children) only, unless the request clearly asks for more.`;
 
-export function buildUserMessage(opts: {
-  prompt: string;
-  category: string;
-  previousCode?: string;
-  history?: string[];
-  manualEdits?: string[];
-  selection?: SelectedElement;
-}): string {
-  if (!opts.previousCode) {
-    const categoryLine = opts.category && opts.category !== "auto" ? `Component type: ${opts.category}\n` : "";
-    return `${categoryLine}Build this component: ${opts.prompt}`;
+/** The final user turn: what is on the canvas right now, then the request itself. */
+export function buildUserMessage(opts: { prompt: string; category: string; theme: "light" | "dark"; canvas?: CanvasContext }): string {
+  const parts: string[] = [`Canvas theme: ${opts.theme}`];
+  if (opts.category && opts.category !== "auto") parts.push(`Component type: ${opts.category}`);
+
+  const c = opts.canvas;
+  if (!c) {
+    parts.push(`Nothing is on the canvas yet. Message: ${opts.prompt}`);
+    return parts.join("\n");
   }
 
-  const parts: string[] = [];
-  if (opts.history?.length) {
-    parts.push(`Earlier requests (oldest first, already applied):\n${opts.history.map((h, i) => `${i + 1}. ${h}`).join("\n")}`);
+  if (c.manualEdits?.length) {
+    parts.push(`Edits the user made by hand on the canvas since ${c.version} was generated (already in the code, keep them):\n${c.manualEdits.map((e) => `- ${e}`).join("\n")}`);
   }
-  if (opts.manualEdits?.length) {
-    parts.push(`Edits the user made by hand on the canvas since then (already in the code, keep them):\n${opts.manualEdits.map((e) => `- ${e}`).join("\n")}`);
+  parts.push(`Current component on the canvas — "${c.name}", ${c.version}:\n\n\`\`\`tsx\n${c.code}\n\`\`\``);
+  if (c.selection) {
+    const path = c.selection.path?.length ? ` (inside ${c.selection.path.map((t) => `<${t}>`).join(" › ")})` : "";
+    parts.push(`Selected element — a <${c.selection.tag}> at line ${c.selection.line}${path}:\n\n\`\`\`tsx\n${c.selection.snippet}\n\`\`\``);
   }
-  parts.push(`Current component:\n\n\`\`\`tsx\n${opts.previousCode}\n\`\`\``);
-  if (opts.selection) {
-    parts.push(
-      `Selected element — a <${opts.selection.tag}> at line ${opts.selection.line}:\n\n\`\`\`tsx\n${opts.selection.snippet}\n\`\`\``,
-    );
-  }
-  parts.push(`Change request${opts.selection ? " (for the selected element)" : ""}: ${opts.prompt}`);
+  parts.push(`Message${c.selection ? " (about the selected element)" : ""}: ${opts.prompt}`);
   return parts.join("\n\n");
 }
