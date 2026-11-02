@@ -14,7 +14,7 @@ tweak → copy**.
 
 ```
 ┌──────────────┐  prompt + category   ┌───────────────────┐
-│  Studio UI   │ ───────────────────▶ │ /api/generate     │──▶ Gemini (streaming)
+│  Studio UI   │ ───────────────────▶ │ /api/generate     │──▶ Groq / Gemini (streaming)
 │  (Next.js)   │ ◀─── streamed code ─ │ (Route Handler)   │
 └──────┬───────┘                      └───────────────────┘
        │ compile (sucrase, in browser)
@@ -38,7 +38,7 @@ cost — and the exported code is rewritten with the user's final values.
 - [x] Next.js 16 app, dark Apple-inspired design system
 - [x] Landing page: hero, live prompt box, category strip, feature section
 - [x] Studio: prompt composer, category picker, voice input (Web Speech API)
-- [x] Streaming generation via Gemini (`/api/generate`)
+- [x] Streaming generation via Groq or Gemini (`/api/generate`)
 - [x] Follow-up refinements ("make it pink", "add a hover tilt")
 - [x] Sandboxed live preview with desktop/tablet/mobile + light/dark canvas
 - [x] Code view with copy & download
@@ -74,6 +74,6 @@ cost — and the exported code is rewritten with the user's final values.
 
 ```bash
 npm install
-cp .env.example .env.local   # add GEMINI_API_KEY (optional — demo mode without it)
+cp .env.example .env.local   # add GROQ_API_KEY or GEMINI_API_KEY (optional — demo mode without it)
 npm run dev
 ```
