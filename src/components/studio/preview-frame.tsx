@@ -27,7 +27,8 @@ type PreviewMessage =
  */
 export function PreviewFrame({ code, tokens, canvas, replayKey, onDefaultTokens, onError }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
+  // Bumped on every "ready": if the iframe document reloads, everything is re-sent.
+  const [loads, setLoads] = useState(0);
   const reportTokens = useEffectEvent((t: TokenObject | null) => onDefaultTokens(t));
   const reportError = useEffectEvent((m: string | null) => onError(m));
   const currentTokens = useEffectEvent(() => tokens);
@@ -39,7 +40,7 @@ export function PreviewFrame({ code, tokens, canvas, replayKey, onDefaultTokens,
     function onMessage(e: MessageEvent<PreviewMessage>) {
       if (e.source !== frame.current?.contentWindow || e.data?.source !== "genui-preview") return;
       const msg = e.data;
-      if (msg.type === "ready") setReady(true);
+      if (msg.type === "ready") setLoads((n) => n + 1);
       if (msg.type === "rendered") {
         reportError(null);
         reportTokens(msg.tokens);
@@ -51,23 +52,23 @@ export function PreviewFrame({ code, tokens, canvas, replayKey, onDefaultTokens,
   }, []);
 
   useEffect(() => {
-    if (!ready || !code) return;
+    if (!loads || !code) return;
     const result = compileComponent(code);
     if (result.ok) send({ type: "render", js: result.js, tokens: currentTokens() });
     else reportError(result.error);
-  }, [ready, code]);
+  }, [loads, code]);
 
   useEffect(() => {
-    if (ready) send({ type: "tokens", tokens });
-  }, [ready, tokens]);
+    if (loads) send({ type: "tokens", tokens });
+  }, [loads, tokens]);
 
   useEffect(() => {
-    if (ready) send({ type: "theme", canvas });
-  }, [ready, canvas]);
+    if (loads) send({ type: "theme", canvas });
+  }, [loads, canvas]);
 
   useEffect(() => {
-    if (ready && replayKey) send({ type: "replay" });
-  }, [ready, replayKey]);
+    if (loads && replayKey) send({ type: "replay" });
+  }, [loads, replayKey]);
 
   return (
     <iframe

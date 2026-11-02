@@ -57,7 +57,7 @@ function liveStream(
           config: {
             systemInstruction: SYSTEM_PROMPT,
             maxOutputTokens: 32000,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             abortSignal: signal,
           },
         });
