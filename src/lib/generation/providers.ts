@@ -3,6 +3,9 @@ import Groq from "groq-sdk";
 import { SYSTEM_PROMPT } from "./system-prompt";
 
 const MAX_OUTPUT_TOKENS = 16000;
+// Groq reserves max_completion_tokens against the per-minute token limit up front,
+// so a large cap gets requests rejected on the free tier. Components fit well within this.
+const GROQ_MAX_OUTPUT_TOKENS = 4500;
 
 /** How a model run ended, once all of its text has been yielded. */
 export type Outcome = "done" | "truncated" | "blocked";
@@ -22,7 +25,7 @@ async function* groq(userMessage: string, signal: AbortSignal): AsyncGenerator<s
   const stream = await client.chat.completions.create(
     {
       model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-      max_completion_tokens: MAX_OUTPUT_TOKENS,
+      max_completion_tokens: GROQ_MAX_OUTPUT_TOKENS,
       reasoning_effort: "medium",
       include_reasoning: false,
       stream: true,
