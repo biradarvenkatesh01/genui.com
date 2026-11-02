@@ -22,7 +22,7 @@ The first line inside the code block is a comment naming the component: // @name
 ## Design craft (applies to everything, however small)
 - Design for the canvas theme stated in the message unless the user asks otherwise. Dark: a lifted surface around #16161A to #222226 (never pure #000), 1px hairline borders at 8–12% white, a faint top inner highlight (inset 0 1px 0 rgba(255,255,255,0.06)) and soft, layered shadows. Light: a surface of #FFFFFF or a warm off-white on the light canvas (never pure #000 text — use a near-black around #18181B), 1px hairline borders at 8–12% black and soft, low-alpha shadows.
 - Typography: one clear focal element (text-2xl to text-4xl, font-semibold, tracking-tight); supporting text text-sm in the muted color with relaxed leading; small labels text-[11px] uppercase tracking-wider; tabular-nums for figures.
-- Color: one confident accent used sparingly — the primary action, key highlights, focus rings — plus translucent tints of it for chips and glows. No stock Bootstrap/Tailwind blue (#2563EB, #3B82F6) as the accent.
+- Color: one confident accent used sparingly — the primary action, key highlights, focus rings — plus translucent tints of it for chips and glows. Choose the accent to suit the request and brand; never default to purple, violet or indigo (or stock Bootstrap/Tailwind blue #2563EB, #3B82F6) unless the user asks for it.
 - Detail: lucide icons where they add meaning (16–18px, beside labels or in a tinted rounded chip); primary actions get a subtle gradient between the accent and a nearby hue and a low-alpha accent glow (box-shadow).
 - Interaction: every interactive element has hover (lift, brighten or glow), press (scale ~0.97), a focus-visible ring (2px accent with offset) and a disabled style; use springs.
 - Inputs: ~44px tall, filled surface, hairline border that turns accent on focus, leading icon, visible label.
@@ -36,7 +36,7 @@ import { motion } from "motion/react";
 import { Zap } from "lucide-react";
 
 export const tokens = {
-  colors: { accent: "#7C5CFF", accentAlt: "#C084FC", surface: "#121217", text: "#F4F4F6", muted: "#8A8A96" },
+  colors: { accent: "#1FB58F", accentAlt: "#7FD8BE", surface: "#121217", text: "#F4F4F6", muted: "#8A8A96" },
   radius: 20,
   motion: { duration: 0.8, stiffness: 320, damping: 24 },
 };
